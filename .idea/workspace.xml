@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0f9d0c34-1d7b-4bb0-b64e-661818b2b19c" name="Changes" comment="Refactor: Remove unused components and assets&#10;&#10;Deleted unnecessary files, including AndroidManifest.xml and React components, to clean up the codebase. This reduction optimizes project maintenance by eliminating redundant assets." />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="477" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file leaf-file-name="main.dart" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/lib/main.dart">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="0">
+              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/f8f-figma" />
+    <option name="ROOT_SYNC" value="SYNC" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;daslaller&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/daslaller/W8W.git&quot;,
+    &quot;accountId&quot;: &quot;3008133c-134d-4b2f-8ee9-d478e1472326&quot;
+  }
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="2.90628449603518E-20" />
+      <entry key="MS500" value="4.8071563417556785E-4" />
+      <entry key="S2" value="1.3220234569973017" />
+      <entry key="S5" value="9.484218305633298" />
+      <entry key="S10" value="19.578391814682238" />
+      <entry key="S30" value="35.100899417714864" />
+      <entry key="S60" value="49.962626250500506" />
+      <entry key="M2" value="68.27806178875124" />
+      <entry key="M5" value="87.49784337814765" />
+      <entry key="M10" value="96.05404237715591" />
+      <entry key="M15" value="99.20393600312363" />
+      <entry key="M30" value="102.51631721081094" />
+      <entry key="H1" value="104.23617655716852" />
+      <entry key="H2" value="105.11251993337686" />
+      <entry key="H4" value="105.55485867013667" />
+      <entry key="D1" value="105.9256143671176" />
+      <entry key="W1" value="105.98936868514316" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0" />
+      <entry key="S5" value="1.0" />
+      <entry key="S10" value="1.0" />
+      <entry key="S30" value="1.0" />
+      <entry key="S60" value="1.0" />
+      <entry key="M2" value="1.0" />
+      <entry key="M5" value="1.0" />
+      <entry key="M10" value="1.0" />
+      <entry key="M15" value="1.0" />
+      <entry key="M30" value="1.0" />
+      <entry key="H1" value="1.0" />
+      <entry key="H2" value="1.0" />
+      <entry key="H4" value="1.0" />
+      <entry key="D1" value="1.0" />
+      <entry key="W1" value="1.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="2.908507497517047E-19" />
+      <entry key="MS500" value="6.684411595152754E-4" />
+      <entry key="S2" value="1.4366316505295305" />
+      <entry key="S5" value="9.900001251841573" />
+      <entry key="S10" value="20.220715442764536" />
+      <entry key="S30" value="35.96226097325515" />
+      <entry key="S60" value="50.88978663116529" />
+      <entry key="M2" value="69.24032956760038" />
+      <entry key="M5" value="88.48230835279956" />
+      <entry key="M10" value="97.04618469159968" />
+      <entry key="M15" value="100.19867598895884" />
+      <entry key="M30" value="103.51367601122149" />
+      <entry key="H1" value="105.23485307817892" />
+      <entry key="H2" value="106.11185746363641" />
+      <entry key="H4" value="106.55452725137917" />
+      <entry key="D1" value="106.92555910500458" />
+      <entry key="W1" value="106.98936078992581" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3GdJA5ByZXlaJRtNoOokHh9epDc" />
+  <component name="ProjectView">
+    <navigator currentView="ProjectPane" proportions="" version="1" />
+    <panes>
+      <pane id="ProjectPane">
+        <option name="show-excluded-files" value="false" />
+      </pane>
+    </panes>
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Flutter.main.dart.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "cidr.known.project.marker": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "io.flutter.reload.alreadyRun": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/bf2di/Projekt/Flutter/f8f",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "pnpm",
+    "show.migrate.to.gradle.popup": "false"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\bf2di\Projekt\Flutter\f8f" />
+      <recent name="C:\Users\bf2di\Projekt\Flutter\f8f\f8f-figma" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="autoflow_android" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="autoflow_android" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.24374.151" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.24374.151" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0f9d0c34-1d7b-4bb0-b64e-661818b2b19c" name="Changes" comment="" />
+      <created>1784295365448</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1784295365448</updated>
+    </task>
+    <task id="LOCAL−00001" summary="Refactor: Remove unused components and assets&#10;&#10;Deleted unnecessary files, including AndroidManifest.xml and React components, to clean up the codebase. This reduction optimizes project maintenance by eliminating redundant assets.">
+      <option name="closed" value="true" />
+      <created>1784320484896</created>
+      <option name="number" value="LOCAL−00001" />
+      <option name="presentableId" value="LOCAL−00001" />
+      <updated>1784320484896</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <editor active="true" />
+    <layout>
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+    </layout>
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Refactor: Remove unused components and assets&#10;&#10;Deleted unnecessary files, including AndroidManifest.xml and React components, to clean up the codebase. This reduction optimizes project maintenance by eliminating redundant assets." />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor: Remove unused components and assets&#10;&#10;Deleted unnecessary files, including AndroidManifest.xml and React components, to clean up the codebase. This reduction optimizes project maintenance by eliminating redundant assets." />
+  </component>
+</project>
