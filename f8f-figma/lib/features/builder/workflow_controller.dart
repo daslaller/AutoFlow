@@ -115,8 +115,7 @@ class WorkflowUiState {
       zoom: zoom ?? this.zoom,
       isRunning: isRunning ?? this.isRunning,
       isPreviewing: isPreviewing ?? this.isPreviewing,
-      drawingWire:
-          clearDrawingWire ? null : (drawingWire ?? this.drawingWire),
+      drawingWire: clearDrawingWire ? null : (drawingWire ?? this.drawingWire),
       search: search ?? this.search,
       sampleRecord: sampleRecord ?? this.sampleRecord,
       lastReport: lastReport ?? this.lastReport,
@@ -250,7 +249,16 @@ class WorkflowController extends Notifier<WorkflowUiState> {
         continue;
       }
       for (final f in type.fields.where((f) => f.required)) {
-        final v = n.config[f.key];
+        // Mirror the same fallback chain the properties panel uses to
+        // resolve a field's effective value, so a required field backed by
+        // a default (or a select's first option) isn't flagged as missing
+        // when the UI already shows it as filled in.
+        final v =
+            n.config[f.key] ??
+            f.defaultValue ??
+            (f.type == FieldType.select && f.options.isNotEmpty
+                ? f.options.first.value
+                : null);
         if (v == null || '$v'.trim().isEmpty) {
           issues.add(
             ValidationIssue(
@@ -261,6 +269,22 @@ class WorkflowController extends Notifier<WorkflowUiState> {
           );
         }
       }
+    }
+    // Only the first trigger-capable node in doc.nodes order is ever used
+    // (see _deriveTrigger) — flag the rest so a user who adds a second
+    // trigger node isn't left wondering why it's inert.
+    final triggerNodeIds = [
+      for (final n in doc.nodes)
+        if (state.catalog.find(n.def.id)?.trigger != null) n.iid,
+    ];
+    for (final iid in triggerNodeIds.skip(1)) {
+      issues.add(
+        ValidationIssue(
+          nodeId: iid,
+          message:
+              'Only one trigger node is active per flow — this one is ignored',
+        ),
+      );
     }
     return issues;
   }
@@ -339,7 +363,10 @@ class WorkflowController extends Notifier<WorkflowUiState> {
 
   void select(String? id, {bool additive = false}) {
     if (id == null) {
-      state = state.copyWith(clearSelected: true, sideTab: SidePanelTab.properties);
+      state = state.copyWith(
+        clearSelected: true,
+        sideTab: SidePanelTab.properties,
+      );
       return;
     }
     if (additive) {
@@ -478,7 +505,12 @@ class WorkflowController extends Notifier<WorkflowUiState> {
     selectMany(pasted.map((n) => n.iid).toSet());
   }
 
-  void startDrawingWire(String fromId, double fx, double fy, {String fromPort = 'out'}) {
+  void startDrawingWire(
+    String fromId,
+    double fx,
+    double fy, {
+    String fromPort = 'out',
+  }) {
     if (state.embedConfig.readOnly) return;
     state = state.copyWith(
       drawingWire: DrawingWire(
@@ -495,7 +527,9 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   void updateDrawingWire(double tx, double ty) {
     final dw = state.drawingWire;
     if (dw == null) return;
-    state = state.copyWith(drawingWire: dw.copyWith(tx: tx, ty: ty));
+    state = state.copyWith(
+      drawingWire: dw.copyWith(tx: tx, ty: ty),
+    );
   }
 
   void finishDrawingWire(String? toId, {String toPort = 'in'}) {
@@ -657,5 +691,6 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   }
 }
 
-final workflowProvider =
-    NotifierProvider<WorkflowController, WorkflowUiState>(WorkflowController.new);
+final workflowProvider = NotifierProvider<WorkflowController, WorkflowUiState>(
+  WorkflowController.new,
+);
