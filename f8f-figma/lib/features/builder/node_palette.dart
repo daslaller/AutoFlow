@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:autoflow/design_system/chip_decor.dart';
+import 'package:autoflow/design_system/icons/lucide_icons.dart';
+import 'package:autoflow/design_system/icons/lucide_path_icon.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/features/builder/canvas/node_card.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
@@ -81,31 +84,55 @@ class NodePalette extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: TextField(
-              onChanged: ctrl.setSearch,
-              style: const TextStyle(color: AnchorColors.slate200, fontSize: 12),
-              decoration: InputDecoration(
-                hintText: 'Search…',
-                hintStyle:
-                    const TextStyle(color: AnchorColors.slate500, fontSize: 12),
-                isDense: true,
-                filled: true,
-                fillColor: AnchorColors.slate800,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
-                  borderSide:
-                      const BorderSide(color: AnchorColors.sidebarBorder),
+            child: SizedBox(
+              height: 34,
+              child: TextField(
+                onChanged: ctrl.setSearch,
+                style: const TextStyle(
+                  color: AnchorColors.slate200,
+                  fontSize: 12,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
-                  borderSide:
-                      const BorderSide(color: AnchorColors.sidebarBorder),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
-                  borderSide: const BorderSide(color: AnchorColors.blue500),
+                decoration: InputDecoration(
+                  hintText: 'Search nodes…',
+                  hintStyle: const TextStyle(
+                    color: AnchorColors.slate500,
+                    fontSize: 12,
+                  ),
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(left: 10, right: 6),
+                    child: LucidePathIcon(
+                      pathData: LucideIcons.search,
+                      size: 14,
+                      color: AnchorColors.slate500,
+                    ),
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 14,
+                  ),
+                  isDense: true,
+                  filled: true,
+                  fillColor: AnchorColors.slate800,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
+                    borderSide: const BorderSide(
+                      color: AnchorColors.sidebarBorder,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
+                    borderSide: const BorderSide(
+                      color: AnchorColors.sidebarBorder,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
+                    borderSide: const BorderSide(color: AnchorColors.blue500),
+                  ),
                 ),
               ),
             ),
@@ -130,8 +157,9 @@ class NodePalette extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              border:
-                  Border(top: BorderSide(color: AnchorColors.sidebarBorder)),
+              border: Border(
+                top: BorderSide(color: AnchorColors.sidebarBorder),
+              ),
             ),
             child: Text(
               'Drag to canvas\nG toggles snap\nClick wire to delete',
@@ -147,14 +175,21 @@ class NodePalette extends ConsumerWidget {
   }
 }
 
-class _PaletteItem extends StatelessWidget {
+class _PaletteItem extends StatefulWidget {
   const _PaletteItem({required this.type});
 
   final NodeTypeDef type;
 
   @override
+  State<_PaletteItem> createState() => _PaletteItemState();
+}
+
+class _PaletteItemState extends State<_PaletteItem> {
+  bool _hover = false;
+
+  @override
   Widget build(BuildContext context) {
-    final def = type.asDef;
+    final def = widget.type.asDef;
     final c = def.kind.color;
     return Draggable<NodeDef>(
       data: def,
@@ -168,45 +203,54 @@ class _PaletteItem extends StatelessWidget {
   }
 
   Widget _itemBody(Color c, NodeDef def) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(7)),
-      child: Row(
-        children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: c.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(5),
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        decoration: BoxDecoration(
+          color: _hover ? AnchorColors.slate800 : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Row(
+          children: [
+            ChipDecor(
+              color: c,
+              size: 26,
+              radius: 5,
+              child: Icon(kindIcon(def.kind), size: 12, color: Colors.white),
             ),
-            child: Icon(kindIcon(def.kind), size: 12, color: c),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  def.label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AnchorColors.slate200,
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    def.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AnchorColors.slate200,
+                    ),
                   ),
-                ),
-                Text(
-                  def.sublabel,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AnchorColors.slate500,
+                  Text(
+                    def.sublabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AnchorColors.slate500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

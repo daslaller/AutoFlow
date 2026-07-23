@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:autoflow/design_system/badge.dart';
+import 'package:autoflow/design_system/chip_decor.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/theme/anchor_colors.dart';
 import 'package:autoflow/theme/anchor_spacing.dart';
 import 'package:autoflow/theme/anchor_typography.dart';
 
 IconData kindIcon(NodeKind kind) => switch (kind) {
-      NodeKind.trigger => Icons.bolt_rounded,
-      NodeKind.action => Icons.arrow_forward_rounded,
-      NodeKind.condition => Icons.account_tree_outlined,
-      NodeKind.transform => Icons.shuffle_rounded,
-      NodeKind.output => Icons.output_rounded,
-    };
+  NodeKind.trigger => Icons.bolt_rounded,
+  NodeKind.action => Icons.arrow_forward_rounded,
+  NodeKind.condition => Icons.account_tree_outlined,
+  NodeKind.transform => Icons.shuffle_rounded,
+  NodeKind.output => Icons.output_rounded,
+};
 
 enum PortSide { input, output }
 
@@ -60,12 +61,12 @@ class WorkflowNodeCard extends StatelessWidget {
             color: wireSource
                 ? AnchorColors.primary.withValues(alpha: 0.7)
                 : selected
-                    ? c.withValues(alpha: 0.55)
-                    : hasError
-                        ? AnchorColors.destructive.withValues(alpha: 0.7)
-                        : hovered
-                            ? AnchorColors.slate300
-                            : AnchorColors.slate200.withValues(alpha: 0.0),
+                ? c.withValues(alpha: 0.55)
+                : hasError
+                ? AnchorColors.destructive.withValues(alpha: 0.7)
+                : hovered
+                ? AnchorColors.slate300
+                : AnchorColors.slate200.withValues(alpha: 0.0),
             width: emphasize || hasError ? 2 : (hovered ? 1.5 : 1),
           ),
         ),
@@ -76,14 +77,15 @@ class WorkflowNodeCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: c.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(7),
+                  ChipDecor(
+                    color: c,
+                    size: 32,
+                    radius: 7,
+                    child: Icon(
+                      kindIcon(node.def.kind),
+                      size: 14,
+                      color: Colors.white,
                     ),
-                    child: Icon(kindIcon(node.def.kind), size: 14, color: c),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -138,7 +140,9 @@ class WorkflowNodeCard extends StatelessWidget {
               left: -AnchorSpacing.portRadius,
               top: AnchorSpacing.nodeHeight / 2 - AnchorSpacing.portRadius,
               child: _Port(
-                color: snapTarget ? AnchorColors.success : AnchorColors.slate400,
+                color: snapTarget
+                    ? AnchorColors.success
+                    : AnchorColors.slate400,
                 filled: false,
                 emphasized: hoveredPort == PortSide.input || snapTarget,
                 connectable: snapTarget,
@@ -208,10 +212,7 @@ class _Port extends StatelessWidget {
             decoration: BoxDecoration(
               color: filled ? color : AnchorColors.white,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: color,
-                width: emphasized ? 2.5 : 2,
-              ),
+              border: Border.all(color: color, width: emphasized ? 2.5 : 2),
               boxShadow: emphasized
                   ? [
                       BoxShadow(
@@ -253,14 +254,11 @@ class PaletteGhost extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: c.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Icon(kindIcon(def.kind), size: 14, color: c),
+              ChipDecor(
+                color: c,
+                size: 32,
+                radius: 7,
+                child: Icon(kindIcon(def.kind), size: 14, color: Colors.white),
               ),
               const SizedBox(width: 10),
               Column(

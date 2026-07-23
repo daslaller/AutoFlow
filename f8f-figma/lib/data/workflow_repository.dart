@@ -61,7 +61,7 @@ class WorkflowRepository {
           x: (n['x'] as num).toDouble(),
           y: (n['y'] as num).toDouble(),
           status: RunStatus.values.byName((n['status'] as String?) ?? 'idle'),
-          config: configRaw.map((k, v) => MapEntry(k, '$v')),
+          config: configRaw,
         ),
       );
     }

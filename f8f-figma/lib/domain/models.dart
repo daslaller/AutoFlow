@@ -389,7 +389,7 @@ class CanvasNode {
   final double x;
   final double y;
   final RunStatus status;
-  final Map<String, String> config;
+  final Map<String, dynamic> config;
 
   String get typeId => def.id;
   Offset get position => Offset(x, y);
@@ -400,7 +400,7 @@ class CanvasNode {
     double? x,
     double? y,
     RunStatus? status,
-    Map<String, String>? config,
+    Map<String, dynamic>? config,
   }) {
     return CanvasNode(
       iid: iid ?? this.iid,

@@ -251,7 +251,7 @@ class WorkflowController extends Notifier<WorkflowUiState> {
       }
       for (final f in type.fields.where((f) => f.required)) {
         final v = n.config[f.key];
-        if (v == null || v.trim().isEmpty) {
+        if (v == null || '$v'.trim().isEmpty) {
           issues.add(
             ValidationIssue(
               nodeId: n.iid,
@@ -419,10 +419,10 @@ class WorkflowController extends Notifier<WorkflowUiState> {
     addNodeFromDef(t.asDef, worldX, worldY);
   }
 
-  void updateSelectedConfig(String key, String value) {
+  void updateSelectedConfig(String key, dynamic value) {
     final sel = state.selectedNode;
     if (sel == null || state.embedConfig.readOnly) return;
-    final config = Map<String, String>.from(sel.config)..[key] = value;
+    final config = Map<String, dynamic>.from(sel.config)..[key] = value;
     final nodes = state.doc.nodes
         .map((n) => n.iid == sel.iid ? n.copyWith(config: config) : n)
         .toList();

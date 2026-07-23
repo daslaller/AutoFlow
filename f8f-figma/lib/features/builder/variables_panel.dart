@@ -86,7 +86,7 @@ class VariablesPanel extends ConsumerWidget {
                             ? null
                             : type!.fields.first;
                         if (field == null) return;
-                        final cur = sel.config[field.key] ?? '';
+                        final cur = '${sel.config[field.key] ?? ''}';
                         final next = cur.isEmpty
                             ? '{{${v.path}}}'
                             : '$cur{{${v.path}}}';

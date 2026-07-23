@@ -68,25 +68,40 @@ class _BuilderPageState extends ConsumerState<BuilderPage> {
         backgroundColor: Colors.transparent,
         body: Column(
           children: [
-            BuilderTopBar(
-              minimal: minimal,
-              onOpenPalette: isMobile
-                  ? () {
-                      showAnchorSheet(
-                        context: context,
-                        child: NodePalette(
-                          onClose: () => Navigator.of(context).maybePop(),
-                        ),
-                      );
-                    }
-                  : null,
+            // Elevated so canvas overflow never paints over the bar.
+            Material(
+              elevation: 2,
+              color: Colors.transparent,
+              child: BuilderTopBar(
+                minimal: minimal,
+                onOpenPalette: isMobile
+                    ? () {
+                        showAnchorSheet(
+                          context: context,
+                          child: NodePalette(
+                            onClose: () => Navigator.of(context).maybePop(),
+                          ),
+                        );
+                      }
+                    : null,
+              ),
             ),
             Expanded(
               child: Row(
                 children: [
-                  if (!isMobile && !minimal) const NodePalette(),
+                  if (!isMobile && !minimal)
+                    Material(
+                      elevation: 1,
+                      color: Colors.transparent,
+                      child: const NodePalette(),
+                    ),
                   const Expanded(child: WorkflowCanvas()),
-                  ?side,
+                  if (side != null)
+                    Material(
+                      elevation: 1,
+                      color: Colors.transparent,
+                      child: side,
+                    ),
                 ],
               ),
             ),

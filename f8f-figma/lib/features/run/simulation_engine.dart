@@ -87,13 +87,13 @@ class SimulationEngine {
 
       try {
         if (node.def.id == 'if-else') {
-          final cond = node.config['condition'] ?? '';
+          final cond = '${node.config['condition'] ?? ''}';
           final pass = _eval.evaluateCondition(cond, ctx);
           output = {'branch': pass ? 'true' : 'false'};
           ctx = {...ctx, 'branch': pass ? 'true' : 'false'};
         } else if (node.def.id == 'code') {
-          final lang = node.config['lang'] ?? 'expression';
-          final source = node.config['code'] ?? '';
+          final lang = '${node.config['lang'] ?? 'expression'}';
+          final source = '${node.config['code'] ?? ''}';
           if (lang == 'expression' || lang.isEmpty) {
             output = _eval.runExpression(source, ctx);
             ctx = {...ctx, 'result': output['result']};
@@ -108,7 +108,7 @@ class SimulationEngine {
           // Interpolate templates into a shallow output snapshot.
           final snap = <String, String>{};
           node.config.forEach((k, v) {
-            snap[k] = _eval.interpolate(v, ctx);
+            snap[k] = _eval.interpolate('$v', ctx);
           });
           output = {'config': snap};
           if (useRandomFailures) {

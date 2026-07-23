@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:autoflow/design_system/badge.dart';
 import 'package:autoflow/design_system/buttons.dart';
+import 'package:autoflow/design_system/chip_decor.dart';
 import 'package:autoflow/design_system/input.dart';
 import 'package:autoflow/design_system/label.dart';
 import 'package:autoflow/domain/models.dart';
@@ -26,8 +27,7 @@ class PropertiesPanel extends ConsumerWidget {
     final type = s.catalog.find(node.def.id);
     final fields = type?.fields ?? const <FieldDef>[];
     final c = node.def.kind.color;
-    final issues =
-        s.validation.where((v) => v.nodeId == node.iid).toList();
+    final issues = s.validation.where((v) => v.nodeId == node.iid).toList();
 
     return Container(
       width: AnchorSpacing.propertiesWidth,
@@ -43,14 +43,15 @@ class PropertiesPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 14),
             child: Row(
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: c.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                ChipDecor(
+                  color: c,
+                  size: 34,
+                  radius: 8,
+                  child: Icon(
+                    kindIcon(node.def.kind),
+                    size: 15,
+                    color: Colors.white,
                   ),
-                  child: Icon(kindIcon(node.def.kind), size: 15, color: c),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -59,16 +60,33 @@ class PropertiesPanel extends ConsumerWidget {
                     children: [
                       Text(
                         node.def.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      AnchorBadge(
-                        label: node.def.kind.label,
-                        backgroundColor: c.withValues(alpha: 0.12),
-                        foregroundColor: c,
+                      Row(
+                        children: [
+                          AnchorBadge(
+                            label: node.def.kind.label,
+                            backgroundColor: c.withValues(alpha: 0.12),
+                            foregroundColor: c,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              node.iid,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AnchorTypography.monoSmall.copyWith(
+                                color: AnchorColors.slate400,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -123,12 +141,14 @@ class PropertiesPanel extends ConsumerWidget {
                   )
                 else
                   ...fields.map((f) {
-                    final isMulti = f.type == FieldType.textarea ||
+                    final isMulti =
+                        f.type == FieldType.textarea ||
                         f.type == FieldType.code ||
                         f.type == FieldType.json ||
                         f.type == FieldType.template;
                     if (f.type == FieldType.toggle) {
-                      final on = (node.config[f.key] ?? f.defaultValue) == 'true';
+                      final on =
+                          (node.config[f.key] ?? f.defaultValue) == 'true';
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: Row(
@@ -139,16 +159,17 @@ class PropertiesPanel extends ConsumerWidget {
                               onChanged: s.embedConfig.readOnly
                                   ? null
                                   : (v) => ctrl.updateSelectedConfig(
-                                        f.key,
-                                        v ? 'true' : 'false',
-                                      ),
+                                      f.key,
+                                      v ? 'true' : 'false',
+                                    ),
                             ),
                           ],
                         ),
                       );
                     }
                     if (f.type == FieldType.select && f.options.isNotEmpty) {
-                      final value = node.config[f.key] ??
+                      final value =
+                          node.config[f.key] ??
                           f.defaultValue ??
                           f.options.first.value;
                       return Padding(
@@ -190,7 +211,8 @@ class PropertiesPanel extends ConsumerWidget {
                           const SizedBox(height: 5),
                           AnchorInput(
                             key: ValueKey('${node.iid}-${f.key}'),
-                            value: node.config[f.key] ?? f.defaultValue ?? '',
+                            value:
+                                '${node.config[f.key] ?? f.defaultValue ?? ''}',
                             onChanged: (v) =>
                                 ctrl.updateSelectedConfig(f.key, v),
                             placeholder: f.placeholder,

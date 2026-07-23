@@ -73,7 +73,7 @@ class _DemoHostState extends State<_DemoHost> {
               'result': {
                 'language': node.config['lang'],
                 'note': 'Host evaluated (demo)',
-                'sourcePreview': (node.config['code'] ?? '').truncate(80),
+                'sourcePreview': '${node.config['code'] ?? ''}'.truncate(80),
               },
             };
           },
