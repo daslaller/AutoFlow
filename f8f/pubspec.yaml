@@ -47,7 +47,7 @@ dependencies:
     git:
       url: https://github.com/daslaller/HeidNodes
       path: packages/fl_nodes_visual_scripting
-      ref: claude/f8f-rail-heidnodes-3jnsp1
+      ref: main
 
 dev_dependencies:
   flutter_test:
@@ -70,7 +70,7 @@ dependency_overrides:
     git:
       url: https://github.com/daslaller/HeidNodes
       path: packages/fl_nodes_core
-      ref: claude/f8f-rail-heidnodes-3jnsp1
+      ref: main
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
