@@ -28,7 +28,7 @@ class BuilderTopBar extends ConsumerWidget {
       height: AnchorSpacing.topBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: AnchorColors.topBarFill,
+        color: const Color(0xF2FFFFFF),
         border: Border(bottom: BorderSide(color: AnchorColors.border)),
         boxShadow: AnchorShadows.sm,
       ),
@@ -73,23 +73,28 @@ class BuilderTopBar extends ConsumerWidget {
               const SizedBox(width: 12),
               Flexible(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 220),
+                  constraints: const BoxConstraints(maxWidth: 260),
                   child: TextFormField(
                     initialValue: s.doc.name,
                     key: ValueKey(s.doc.name),
                     onChanged: ctrl.setName,
                     style: TextStyle(
                       fontSize: 13,
-                      color: AnchorColors.chromeFg,
+                      fontWeight: FontWeight.w600,
+                      color: AnchorColors.foreground,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       filled: false,
                       contentPadding: EdgeInsets.zero,
-                      hintText: 'Workflow name',
+                      hintText: 'Untitled workflow',
+                      hintStyle: TextStyle(
+                        color: AnchorColors.mutedForeground,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -102,8 +107,8 @@ class BuilderTopBar extends ConsumerWidget {
                   icon: Icon(
                     Icons.undo_rounded,
                     color: s.canUndo
-                        ? AnchorColors.chromeFg
-                        : AnchorColors.chromeDisabled,
+                        ? AnchorColors.slate600
+                        : AnchorColors.slate300,
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -113,8 +118,8 @@ class BuilderTopBar extends ConsumerWidget {
                   icon: Icon(
                     Icons.redo_rounded,
                     color: s.canRedo
-                        ? AnchorColors.chromeFg
-                        : AnchorColors.chromeDisabled,
+                        ? AnchorColors.slate600
+                        : AnchorColors.slate300,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -125,20 +130,8 @@ class BuilderTopBar extends ConsumerWidget {
                     Icons.grid_on_rounded,
                     color: s.snapToGrid
                         ? AnchorColors.primary
-                        : AnchorColors.chromeMuted,
+                        : AnchorColors.slate400,
                   ),
-                ),
-                const SizedBox(width: 4),
-                AnchorIconButton(
-                  tooltip: 'Variables',
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.variables),
-                  icon: const Icon(Icons.data_object_rounded),
-                ),
-                const SizedBox(width: 4),
-                AnchorIconButton(
-                  tooltip: 'Preview inspector',
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.preview),
-                  icon: const Icon(Icons.timeline_rounded),
                 ),
                 const SizedBox(width: 6),
               ],
@@ -175,7 +168,7 @@ class BuilderTopBar extends ConsumerWidget {
                     '${(s.zoom * 100).round()}%',
                     textAlign: TextAlign.center,
                     style: AnchorTypography.monoSmall.copyWith(
-                      color: AnchorColors.chromeFg,
+                      color: AnchorColors.slate600,
                     ),
                   ),
                 ),
@@ -188,11 +181,19 @@ class BuilderTopBar extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               AnchorButton(
-                label: 'Record',
-                variant: AnchorButtonVariant.outline,
+                label: s.selectedRecord?.title.split(' · ').first ?? 'Record',
+                variant: s.sideTab == SidePanelTab.records
+                    ? AnchorButtonVariant.secondary
+                    : AnchorButtonVariant.outline,
                 size: AnchorButtonSize.sm,
-                onPressed: () => ctrl.setSideTab(SidePanelTab.preview),
-                icon: const Icon(Icons.fiber_manual_record, size: 12),
+                onPressed: () => ctrl.setSideTab(SidePanelTab.records),
+                icon: Icon(
+                  Icons.table_rows_rounded,
+                  size: 13,
+                  color: s.selectedRecordId != null
+                      ? AnchorColors.primary
+                      : AnchorColors.slate500,
+                ),
               ),
               const SizedBox(width: 6),
               Semantics(

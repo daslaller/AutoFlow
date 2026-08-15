@@ -10,22 +10,18 @@ import 'package:autoflow/theme/anchor_spacing.dart';
 import 'package:autoflow/theme/anchor_typography.dart';
 
 class PreviewPanel extends ConsumerWidget {
-  const PreviewPanel({super.key});
+  const PreviewPanel({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(workflowProvider);
     final ctrl = ref.read(workflowProvider.notifier);
     final events = s.previewEvents;
+    final rec = s.selectedRecord;
 
-    return Container(
-      width: AnchorSpacing.propertiesWidth + 40,
-      decoration: BoxDecoration(
-        color: AnchorColors.panelFill,
-        border: Border(left: BorderSide(color: AnchorColors.border)),
-        boxShadow: AnchorShadows.md,
-      ),
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -34,23 +30,28 @@ class PreviewPanel extends ConsumerWidget {
               children: [
                 const Expanded(
                   child: Text(
-                    'Preview Inspector',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    'Preview',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.properties),
-                  icon: const Icon(Icons.close, size: 16),
-                ),
+                if (!embedded)
+                  IconButton(
+                    onPressed: () => ctrl.setSideTab(SidePanelTab.properties),
+                    icon: const Icon(Icons.close, size: 16),
+                  ),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Record drives Preview. Production runs happen in RepairX.',
-              style: AnchorTypography.monoSmall.copyWith(
-                color: AnchorColors.slate500,
+              rec == null
+                  ? 'Pick a record, then run Preview against it.'
+                  : 'Running against ${rec.title}',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AnchorColors.mutedForeground,
               ),
             ),
           ),
@@ -61,10 +62,10 @@ class PreviewPanel extends ConsumerWidget {
               children: [
                 Expanded(
                   child: AnchorButton(
-                    label: 'Edit Record',
+                    label: 'Records',
                     variant: AnchorButtonVariant.outline,
                     size: AnchorButtonSize.sm,
-                    onPressed: () => _editRecord(context, ctrl, s.sampleRecord),
+                    onPressed: () => ctrl.setSideTab(SidePanelTab.records),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -134,57 +135,17 @@ class PreviewPanel extends ConsumerWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
+      );
 
-  Future<void> _editRecord(
-    BuildContext context,
-    WorkflowController ctrl,
-    Map<String, dynamic> current,
-  ) async {
-    final field = TextEditingController(
-      text: const JsonEncoder.withIndent('  ').convert(current),
-    );
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sample Record'),
-        content: SizedBox(
-          width: 520,
-          child: TextField(
-            controller: field,
-            maxLines: 16,
-            style: AnchorTypography.mono,
-            decoration: const InputDecoration(
-              hintText: 'Paste ticket/message JSON…',
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Use Record'),
-          ),
-        ],
+    if (embedded) return body;
+    return Container(
+      width: AnchorSpacing.propertiesWidth,
+      decoration: BoxDecoration(
+        color: AnchorColors.white,
+        border: Border(left: BorderSide(color: AnchorColors.border)),
       ),
+      child: body,
     );
-    if (ok == true) {
-      try {
-        final map = jsonDecode(field.text) as Map<String, dynamic>;
-        ctrl.setSampleRecord(map);
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Invalid JSON: $e')),
-          );
-        }
-      }
-    }
   }
 }
 

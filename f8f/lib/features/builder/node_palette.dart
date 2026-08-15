@@ -5,7 +5,6 @@ import 'package:autoflow/features/builder/canvas/node_card.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 import 'package:autoflow/theme/anchor_colors.dart';
 import 'package:autoflow/theme/anchor_spacing.dart';
-import 'package:autoflow/theme/anchor_typography.dart';
 
 class NodePalette extends ConsumerWidget {
   const NodePalette({super.key, this.onClose});
@@ -30,15 +29,14 @@ class NodePalette extends ConsumerWidget {
       if (items.isEmpty) continue;
       children.add(
         Padding(
-          padding: const EdgeInsets.fromLTRB(6, 12, 6, 4),
+          padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
           child: Text(
             kind.label,
             style: TextStyle(
-              fontSize: 10,
-              letterSpacing: 1.6,
-              color: kind.color.withValues(alpha: 0.75),
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.w500,
+              fontSize: 11,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w600,
+              color: kind.color,
             ),
           ),
         ),
@@ -50,20 +48,24 @@ class NodePalette extends ConsumerWidget {
 
     return Container(
       width: AnchorSpacing.sidebarWidth,
-      color: AnchorColors.sidebarBg,
+      decoration: BoxDecoration(
+        color: AnchorColors.sidebarBg,
+        border: Border(right: BorderSide(color: AnchorColors.sidebarBorder)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 16, 10, 8),
+            padding: const EdgeInsets.fromLTRB(16, 16, 10, 10),
             child: Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Text(
-                    'NODES',
-                    style: AnchorTypography.monoSmall.copyWith(
-                      color: AnchorColors.sidebarFgMuted,
-                      letterSpacing: 2,
+                    'Nodes',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
@@ -73,7 +75,7 @@ class NodePalette extends ConsumerWidget {
                     icon: Icon(
                       Icons.close,
                       size: 16,
-                      color: AnchorColors.sidebarFgMuted,
+                      color: AnchorColors.slate500,
                     ),
                   ),
               ],
@@ -83,16 +85,25 @@ class NodePalette extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
               onChanged: ctrl.setSearch,
-              style: TextStyle(color: AnchorColors.sidebarFg, fontSize: 12),
+              style: TextStyle(color: AnchorColors.foreground, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search…',
-                hintStyle:
-                    TextStyle(color: AnchorColors.sidebarFgMuted, fontSize: 12),
+                hintText: 'Search nodes',
+                hintStyle: TextStyle(
+                  color: AnchorColors.mutedForeground,
+                  fontSize: 13,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 16,
+                  color: AnchorColors.mutedForeground,
+                ),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 36, minHeight: 36),
                 isDense: true,
                 filled: true,
-                fillColor: AnchorColors.sidebarInputBg,
+                fillColor: AnchorColors.slate50,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
                   borderSide: BorderSide(color: AnchorColors.sidebarBorder),
@@ -103,39 +114,39 @@ class NodePalette extends ConsumerWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
-                  borderSide: BorderSide(color: AnchorColors.ring),
+                  borderSide: const BorderSide(color: AnchorColors.blue500),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Expanded(
             child: types.isEmpty
                 ? Center(
                     child: Text(
-                      'No items match',
+                      'No nodes match',
                       style: TextStyle(
-                        color: AnchorColors.sidebarFgMuted,
-                        fontSize: 12,
+                        color: AnchorColors.mutedForeground,
+                        fontSize: 13,
                       ),
                     ),
                   )
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
                     children: children,
                   ),
           ),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             decoration: BoxDecoration(
-              border:
-                  Border(top: BorderSide(color: AnchorColors.sidebarBorder)),
+              border: Border(top: BorderSide(color: AnchorColors.sidebarBorder)),
             ),
             child: Text(
-              'Drag to canvas\nG toggles snap\nClick wire to delete',
-              style: AnchorTypography.monoSmall.copyWith(
-                color: AnchorColors.sidebarFgMuted,
-                height: 1.55,
+              'Drag onto the canvas\nG snaps to grid · click a wire to delete',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.5,
+                color: AnchorColors.mutedForeground,
               ),
             ),
           ),
@@ -160,51 +171,65 @@ class _PaletteItem extends StatelessWidget {
         color: Colors.transparent,
         child: PaletteGhost(def: def),
       ),
-      childWhenDragging: Opacity(opacity: 0.4, child: _itemBody(c, def)),
+      childWhenDragging: Opacity(opacity: 0.35, child: _itemBody(c, def)),
       child: _itemBody(c, def),
     );
   }
 
   Widget _itemBody(Color c, NodeDef def) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(7)),
-      child: Row(
-        children: [
-          Container(
-            width: 26,
-            height: 26,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: c.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(kindIcon(def.kind), size: 12, color: c),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  def.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AnchorColors.sidebarFg,
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: c.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(7),
                   ),
+                  child: Icon(kindIcon(def.kind), size: 14, color: c),
                 ),
-                Text(
-                  def.sublabel,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AnchorColors.sidebarFgMuted,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        def.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AnchorColors.foreground,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        def.sublabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AnchorColors.mutedForeground,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:autoflow/domain/models.dart';
+import 'package:autoflow/domain/records.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 
 /// Host-facing controller for embedding AutoFlow in RepairX (or any Flutter app).
@@ -75,6 +76,9 @@ class AutoFlowController {
 
   void setSampleRecord(Map<String, dynamic> record) =>
       _wc.setSampleRecord(record);
+
+  void setPreviewRecords(List<DataRecord> records) =>
+      _wc.setPreviewRecords(records);
 
   Future<RunReport?> startPreview({bool record = true}) =>
       _wc.startPreview(record: record);

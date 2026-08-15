@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/features/builder/canvas/node_card.dart';
+import 'package:autoflow/features/builder/canvas/port_geometry.dart';
 import 'package:autoflow/features/builder/canvas/wire_painter.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 import 'package:autoflow/theme/anchor_colors.dart';
@@ -14,9 +15,16 @@ import 'package:autoflow/theme/anchor_typography.dart';
 enum _DragMode { none, pan, node, wire }
 
 class _PortHit {
-  const _PortHit(this.nodeId, this.side);
+  const _PortHit(this.nodeId, this.side, this.portId);
   final String nodeId;
   final PortSide side;
+  final String portId;
+}
+
+class _SnapTarget {
+  const _SnapTarget(this.nodeId, this.portId);
+  final String nodeId;
+  final String portId;
 }
 
 class WorkflowCanvas extends ConsumerStatefulWidget {
@@ -45,7 +53,7 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
   String? _hoveredWireId;
   String? _hoveredNodeId;
   _PortHit? _hoveredPort;
-  String? _snapTargetId;
+  _SnapTarget? _snapTarget;
   Size _viewportSize = Size.zero;
 
   static const _edgeMargin = 56.0;
@@ -75,32 +83,40 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
     );
   }
 
-  bool _hitOutput(CanvasNode n, Offset world) {
-    final px = n.x + AnchorSpacing.nodeWidth;
-    final py = n.y + AnchorSpacing.nodeHeight / 2;
-    return (Offset(px, py) - world).distance < AnchorSpacing.portRadius + 12;
-  }
+  NodeTypeDef? _typeOf(CanvasNode n, WorkflowUiState s) =>
+      s.catalog.find(n.def.id);
 
-  bool _hitInput(CanvasNode n, Offset world) {
-    final px = n.x;
-    final py = n.y + AnchorSpacing.nodeHeight / 2;
-    return (Offset(px, py) - world).distance < AnchorSpacing.portRadius + 14;
-  }
-
-  bool _hitBody(CanvasNode n, Offset world) {
+  bool _hitBody(CanvasNode n, Offset world, WorkflowUiState s) {
+    final size = PortGeometry.nodeSize(_typeOf(n, s));
     return world.dx >= n.x &&
-        world.dx <= n.x + AnchorSpacing.nodeWidth &&
+        world.dx <= n.x + size.width &&
         world.dy >= n.y &&
-        world.dy <= n.y + AnchorSpacing.nodeHeight;
+        world.dy <= n.y + size.height;
   }
 
-  _PortHit? _findPort(Offset world, List<CanvasNode> nodes, {bool inputsOnly = false, bool outputsOnly = false}) {
-    for (final n in nodes.reversed) {
-      if (!inputsOnly && _hitOutput(n, world)) {
-        return _PortHit(n.iid, PortSide.output);
+  _PortHit? _findPort(
+    Offset world,
+    WorkflowUiState s, {
+    bool inputsOnly = false,
+    bool outputsOnly = false,
+  }) {
+    for (final n in s.doc.nodes.reversed) {
+      final type = _typeOf(n, s);
+      if (!inputsOnly) {
+        for (final p in PortGeometry.outputsOf(type)) {
+          final pos = PortGeometry.output(n, p.id, type);
+          if ((pos - world).distance < AnchorSpacing.portRadius + 14) {
+            return _PortHit(n.iid, PortSide.output, p.id);
+          }
+        }
       }
-      if (!outputsOnly && _hitInput(n, world)) {
-        return _PortHit(n.iid, PortSide.input);
+      if (!outputsOnly) {
+        for (final p in PortGeometry.inputsOf(type)) {
+          final pos = PortGeometry.input(n, p.id, type);
+          if ((pos - world).distance < AnchorSpacing.portRadius + 16) {
+            return _PortHit(n.iid, PortSide.input, p.id);
+          }
+        }
       }
     }
     return null;
@@ -121,11 +137,11 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
   void _updateHover(Offset screen, WorkflowUiState s) {
     if (_mode != _DragMode.none) return;
     final world = _screenToWorld(screen, s);
-    final port = _findPort(world, s.doc.nodes);
+    final port = _findPort(world, s);
     String? nodeId;
     if (port == null) {
       for (final n in s.doc.nodes.reversed) {
-        if (_hitBody(n, world)) {
+        if (_hitBody(n, world, s)) {
           nodeId = n.iid;
           break;
         }
@@ -135,6 +151,7 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
         port == null && nodeId == null ? _lastPainter?.hitTestWire(world) : null;
     if (port?.nodeId != _hoveredPort?.nodeId ||
         port?.side != _hoveredPort?.side ||
+        port?.portId != _hoveredPort?.portId ||
         wireId != _hoveredWireId ||
         nodeId != _hoveredNodeId) {
       setState(() {
@@ -215,16 +232,22 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
   void _updateWireDrag(Offset world, WorkflowUiState s) {
     final ctrl = ref.read(workflowProvider.notifier);
     ctrl.updateDrawingWire(world.dx, world.dy);
-    String? snap;
+    _SnapTarget? snap;
     for (final n in s.doc.nodes) {
       if (s.drawingWire != null && n.iid == s.drawingWire!.fromId) continue;
-      if (_hitInput(n, world)) {
-        snap = n.iid;
-        break;
+      final type = _typeOf(n, s);
+      for (final p in PortGeometry.inputsOf(type)) {
+        final pos = PortGeometry.input(n, p.id, type);
+        if ((pos - world).distance < AnchorSpacing.portRadius + 18) {
+          snap = _SnapTarget(n.iid, p.id);
+          break;
+        }
       }
+      if (snap != null) break;
     }
-    if (snap != _snapTargetId) {
-      setState(() => _snapTargetId = snap);
+    if (snap?.nodeId != _snapTarget?.nodeId ||
+        snap?.portId != _snapTarget?.portId) {
+      setState(() => _snapTarget = snap);
     }
   }
 
@@ -236,26 +259,29 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
     final world = _screenToWorld(e.localPosition, s);
     final nodes = [...s.doc.nodes].reversed;
 
-    for (final n in nodes) {
-      if (_hitOutput(n, world)) {
-        _mode = _DragMode.wire;
-        _clearHover();
-        setState(() {
-          _snapTargetId = null;
-          _hoveredPort = _PortHit(n.iid, PortSide.output);
-        });
-        ctrl.startDrawingWire(
-          n.iid,
-          n.x + AnchorSpacing.nodeWidth,
-          n.y + AnchorSpacing.nodeHeight / 2,
-        );
-        _startAutoPan();
-        return;
-      }
+    final outHit = _findPort(world, s, outputsOnly: true);
+    if (outHit != null) {
+      final n = s.doc.nodes.firstWhere((x) => x.iid == outHit.nodeId);
+      final type = _typeOf(n, s);
+      final origin = PortGeometry.output(n, outHit.portId, type);
+      _mode = _DragMode.wire;
+      _clearHover();
+      setState(() {
+        _snapTarget = null;
+        _hoveredPort = outHit;
+      });
+      ctrl.startDrawingWire(
+        n.iid,
+        origin.dx,
+        origin.dy,
+        fromPort: outHit.portId,
+      );
+      _startAutoPan();
+      return;
     }
 
     for (final n in nodes) {
-      if (_hitBody(n, world)) {
+      if (_hitBody(n, world, s)) {
         _mode = _DragMode.node;
         _dragNodeId = n.iid;
         _startScreen = e.localPosition;
@@ -315,22 +341,20 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
     }
     if (_mode == _DragMode.wire) {
       final world = _screenToWorld(e.localPosition, s);
-      String? toId = _snapTargetId;
+      var toId = _snapTarget?.nodeId;
+      var toPort = _snapTarget?.portId ?? 'in';
       if (toId == null) {
-        for (final n in s.doc.nodes) {
-          if (_hitInput(n, world)) {
-            toId = n.iid;
-            break;
-          }
-        }
+        final hit = _findPort(world, s, inputsOnly: true);
+        toId = hit?.nodeId;
+        toPort = hit?.portId ?? 'in';
       }
-      ctrl.finishDrawingWire(toId);
+      ctrl.finishDrawingWire(toId, toPort: toPort);
     }
     _stopAutoPan();
     _mode = _DragMode.none;
     _dragNodeId = null;
     setState(() {
-      _snapTargetId = null;
+      _snapTarget = null;
       _hoveredPort = null;
     });
     _updateHover(e.localPosition, ref.read(workflowProvider));
@@ -419,7 +443,7 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
         ctrl.finishDrawingWire(null);
         _stopAutoPan();
         _mode = _DragMode.none;
-        setState(() => _snapTargetId = null);
+        setState(() => _snapTarget = null);
         return KeyEventResult.handled;
       }
       ctrl.select(null);
@@ -432,7 +456,7 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
     if (_mode == _DragMode.pan) return SystemMouseCursors.grabbing;
     if (_mode == _DragMode.node) return SystemMouseCursors.grabbing;
     if (_mode == _DragMode.wire) {
-      return _snapTargetId != null
+      return _snapTarget != null
           ? SystemMouseCursors.copy
           : SystemMouseCursors.precise;
     }
@@ -445,19 +469,19 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(workflowProvider);
-    final drawingValid = _snapTargetId != null;
+    final drawingValid = _snapTarget != null;
     final painter = WirePainter(
       nodes: s.doc.nodes,
       wires: s.doc.wires,
-      drawingWire: s.drawingWire,
+      catalog: s.catalog,
       dashPhase: _dashCtrl.value * 24,
       hoveredWireId: _hoveredWireId,
-      snapTargetId: _snapTargetId,
-      drawingValid: drawingValid,
+      snapTargetId: _snapTarget?.nodeId,
       zoom: s.zoom,
     );
     _lastPainter = painter;
     final wireSourceId = s.drawingWire?.fromId;
+    final drawing = s.drawingWire;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -540,18 +564,19 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
                                           painter: WirePainter(
                                             nodes: s.doc.nodes,
                                             wires: s.doc.wires,
-                                            drawingWire: s.drawingWire,
+                                            catalog: s.catalog,
                                             dashPhase: _dashCtrl.value * 24,
                                             hoveredWireId: _hoveredWireId,
-                                            snapTargetId: _snapTargetId,
-                                            drawingValid: drawingValid,
+                                            snapTargetId: _snapTarget?.nodeId,
                                             zoom: s.zoom,
                                           ),
                                         ),
                                         ...s.doc.nodes.map((n) {
                                           PortSide? portHover;
+                                          String? portId;
                                           if (_hoveredPort?.nodeId == n.iid) {
                                             portHover = _hoveredPort!.side;
+                                            portId = _hoveredPort!.portId;
                                           }
                                           final hasError = s.validation
                                               .any((v) => v.nodeId == n.iid);
@@ -561,12 +586,14 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
                                             child: IgnorePointer(
                                               child: WorkflowNodeCard(
                                                 node: n,
+                                                type: _typeOf(n, s),
                                                 selected: n.iid == s.selectedId ||
                                                     s.selectedIds.contains(n.iid),
                                                 hovered: _hoveredNodeId == n.iid,
                                                 hoveredPort: portHover,
+                                                hoveredPortId: portId,
                                                 snapTarget:
-                                                    _snapTargetId == n.iid,
+                                                    _snapTarget?.nodeId == n.iid,
                                                 wireSource:
                                                     wireSourceId == n.iid,
                                                 hasError: hasError,
@@ -578,6 +605,24 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
                                     ),
                                   ),
                                 ),
+                                if (drawing != null)
+                                  Positioned.fill(
+                                    child: IgnorePointer(
+                                      child: CustomPaint(
+                                        painter: DrawingWirePainter(
+                                          from: Offset(
+                                            drawing.fx * s.zoom + s.panX,
+                                            drawing.fy * s.zoom + s.panY,
+                                          ),
+                                          to: Offset(
+                                            drawing.tx * s.zoom + s.panX,
+                                            drawing.ty * s.zoom + s.panY,
+                                          ),
+                                          valid: drawingValid,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 if (_hoveredWireId != null &&
                                     _mode == _DragMode.none)
                                   Positioned(

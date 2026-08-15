@@ -4,6 +4,7 @@ import 'package:autoflow/api/autoflow_callbacks.dart';
 import 'package:autoflow/api/autoflow_controller.dart';
 import 'package:autoflow/domain/catalog.dart';
 import 'package:autoflow/domain/models.dart';
+import 'package:autoflow/domain/records.dart';
 import 'package:autoflow/domain/variables.dart';
 import 'package:autoflow/features/builder/builder_page.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
@@ -18,6 +19,7 @@ class AutoFlowBuilder extends ConsumerStatefulWidget {
     this.catalog,
     this.variables,
     this.sampleRecord,
+    this.previewRecords,
     this.callbacks = const AutoFlowCallbacks(),
     this.chrome = EmbedChrome.full,
     this.readOnly = false,
@@ -29,6 +31,7 @@ class AutoFlowBuilder extends ConsumerStatefulWidget {
   final NodeCatalog? catalog;
   final VariableSchema? variables;
   final Map<String, dynamic>? sampleRecord;
+  final List<DataRecord>? previewRecords;
   final AutoFlowCallbacks callbacks;
   final EmbedChrome chrome;
   final bool readOnly;
@@ -62,6 +65,9 @@ class _AutoFlowBuilderState extends ConsumerState<AutoFlowBuilder> {
     );
     if (widget.catalog != null) ctrl.setCatalog(widget.catalog!);
     if (widget.variables != null) ctrl.setVariables(widget.variables!);
+    if (widget.previewRecords != null) {
+      ctrl.setPreviewRecords(widget.previewRecords!);
+    }
     if (widget.sampleRecord != null) {
       ctrl.setSampleRecord(widget.sampleRecord!);
     }

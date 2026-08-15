@@ -12,9 +12,10 @@ import 'package:autoflow/theme/anchor_spacing.dart';
 import 'package:autoflow/theme/anchor_typography.dart';
 
 class PropertiesPanel extends ConsumerWidget {
-  const PropertiesPanel({super.key, this.onClose});
+  const PropertiesPanel({super.key, this.onClose, this.embedded = false});
 
   final VoidCallback? onClose;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,14 +30,7 @@ class PropertiesPanel extends ConsumerWidget {
     final issues =
         s.validation.where((v) => v.nodeId == node.iid).toList();
 
-    return Container(
-      width: AnchorSpacing.propertiesWidth,
-      decoration: BoxDecoration(
-        color: AnchorColors.panelFill,
-        border: Border(left: BorderSide(color: AnchorColors.border)),
-        boxShadow: AnchorShadows.md,
-      ),
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -251,7 +245,16 @@ class PropertiesPanel extends ConsumerWidget {
             ),
           ),
         ],
+      );
+
+    if (embedded) return body;
+    return Container(
+      width: AnchorSpacing.propertiesWidth,
+      decoration: BoxDecoration(
+        color: AnchorColors.white,
+        border: Border(left: BorderSide(color: AnchorColors.border)),
       ),
+      child: body,
     );
   }
 }
