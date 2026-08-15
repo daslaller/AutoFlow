@@ -156,7 +156,8 @@ class SimulationEngine {
         );
       }
 
-      if (node.def.id == 'if-else' && outs.length > 1) {
+      if ((node.def.id == 'if-else' || node.def.id == 'switch') &&
+          outs.length > 1) {
         return conditionNode(
           idName: node.iid,
           displayName: (_) => node.def.label,
@@ -167,13 +168,11 @@ class SimulationEngine {
             if (shouldCancel?.call() == true) return outs.first;
             await beforeNode(node);
             final started = DateTime.now().toUtc();
-            final cond = node.config['condition'] ?? '';
-            final pass = _eval.evaluateCondition(cond, ctx);
-            final branch = pass ? 'true' : 'false';
+            final branch = _takenBranch(node, ctx, outs);
             final output = {'branch': branch};
             ctx = {...ctx, 'branch': branch};
             await afterNode(node, started, ok: true, output: output);
-            return outs.contains(branch) ? branch : outs.first;
+            return branch;
           },
         );
       }
@@ -260,5 +259,29 @@ class SimulationEngine {
       input: input,
       finishedAt: DateTime.now().toUtc(),
     );
+  }
+
+  /// Named control port this branching node should forward to.
+  String _takenBranch(
+    CanvasNode node,
+    Map<String, dynamic> ctx,
+    List<String> outs,
+  ) {
+    if (node.def.id == 'if-else') {
+      final pass = _eval.evaluateCondition(node.config['condition'] ?? '', ctx);
+      final branch = pass ? 'true' : 'false';
+      return outs.contains(branch) ? branch : outs.first;
+    }
+    if (node.def.id == 'switch') {
+      final value = _eval.interpolate(node.config['expr'] ?? '', ctx);
+      for (final key in const ['case1', 'case2', 'case3']) {
+        final expected = (node.config[key] ?? '').trim();
+        if (expected.isNotEmpty && value == expected) {
+          return outs.contains(key) ? key : outs.first;
+        }
+      }
+      return outs.contains('default') ? 'default' : outs.last;
+    }
+    return outs.first;
   }
 }

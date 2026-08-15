@@ -18,7 +18,12 @@ void main() {
     expect(cat.find('device.received'), isNotNull);
     expect(cat.find('spare_part.received'), isNotNull);
     expect(cat.find('ticket.created'), isNotNull);
-    expect(cat.find('inventory.low_stock'), isNotNull);
+    expect(cat.find('switch')?.outputs.map((p) => p.id).toList(), [
+      'case1',
+      'case2',
+      'case3',
+      'default',
+    ]);
   });
 
   test('palette derived from catalog', () {
