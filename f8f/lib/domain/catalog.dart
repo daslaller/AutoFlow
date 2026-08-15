@@ -403,9 +403,17 @@ NodeCatalog buildDefaultCatalog() {
         label: 'Switch',
         sublabel: 'Multi-case routing',
         inputs: inPort,
-        outputs: outPort,
+        outputs: const [
+          PortDef(id: 'case1', label: 'Case 1'),
+          PortDef(id: 'case2', label: 'Case 2'),
+          PortDef(id: 'case3', label: 'Case 3'),
+          PortDef(id: 'default', label: 'Default'),
+        ],
         fields: [
-          _text('expr', 'Expression', '{{data.type}}'),
+          _text('expr', 'Expression', '{{ticket.status}}', required: true),
+          _text('case1', 'Case 1 equals', 'intake'),
+          _text('case2', 'Case 2 equals', 'in_progress'),
+          _text('case3', 'Case 3 equals', ''),
         ],
       ),
       NodeTypeDef(

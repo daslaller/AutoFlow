@@ -1,9 +1,7 @@
 # RepairX integration playbook
 
-> Written before the engine swap and the F8F repo restructure (see
-> `../ENGINE.md` and the root `README.md`). Sections 1 and 3 below have been
-> corrected to match what actually shipped; sections 2, 4, 5 were already
-> accurate and are unchanged.
+How RepairX (or another Flutter host) embeds AutoFlow. Preview execution is
+documented in `ENGINE.md`; this page is the host-side wiring.
 
 ## 1. Depend on AutoFlow
 
