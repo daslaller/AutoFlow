@@ -2,20 +2,17 @@
 
 AutoFlow is an **embeddable workflow designer**. RepairX (or any host) owns production execution; AutoFlow owns design, validation, and in-editor **Preview**.
 
-> ⚠️ **2026-08-10 update — read `../ENGINE.md` first.** Preview's execution
-> is now backed by `daslaller/HeidNodes`' `fl_nodes_core`, not a hand-rolled
-> topological walk — the practical effect is that an `if-else` node's
-> untaken branch genuinely never runs in Preview anymore (it used to). The
-> canvas below is unchanged. `../ENGINE.md` also documents a new host-theme
-> injection point (`AnchorColors.active`) — see "Theming" below.
+Preview execution is HeidNodes `fl_nodes_core` (see `ENGINE.md`): an If/Else
+or Switch node's untaken branch does not run. The canvas is AutoFlow's own
+widgets — named output ports are independently wirable.
 
 ## Engine (canvas)
 
 Custom Flutter canvas (no Flame / React Flow) — **rendering/interaction
-only**; see `../ENGINE.md` for the execution engine underneath Preview:
+only**; see `ENGINE.md` for the execution engine underneath Preview:
 
 - Viewport: matrix pan/zoom + pointer hit-testing
-- Wires: antialiased `CustomPainter` Beziers
+- Wires: antialiased `CustomPainter` Beziers, one anchor per catalog port
 - Nodes: positioned widgets
 - State: Riverpod + `AutoFlowController`
 
@@ -70,6 +67,7 @@ AutoFlowBuilder(
   catalog: catalogFromApi,          // NodeCatalog
   variables: variablesFromApi,      // VariableSchema
   sampleRecord: sampleTicketJson,
+  previewRecords: shopRows,         // tickets / POs / devices / parts
   chrome: EmbedChrome.minimal,
   callbacks: AutoFlowCallbacks(
     onWorkflowChanged: (doc) => api.putFlow(doc.toJson()),
