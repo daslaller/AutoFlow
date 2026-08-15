@@ -47,9 +47,11 @@ AutoFlowBuilder(
 ```
 
 Hosts can override the palette (`AnchorColors.active = …`) before mounting
-the builder. Full contract: [`f8f/docs/HOST_API.md`](f8f/docs/HOST_API.md).
-RepairX wiring: [`f8f/docs/REPAIRX.md`](f8f/docs/REPAIRX.md). How Preview
-actually runs: [`f8f/docs/ENGINE.md`](f8f/docs/ENGINE.md).
+the builder. Named default-look alternatives (`midnight`, `workshop`,
+`harbor`, `studio`) live in `AnchorThemePresets`. Full contract:
+[`f8f/docs/HOST_API.md`](f8f/docs/HOST_API.md). RepairX wiring:
+[`f8f/docs/REPAIRX.md`](f8f/docs/REPAIRX.md). How Preview actually runs:
+[`f8f/docs/ENGINE.md`](f8f/docs/ENGINE.md).
 
 ## Repo layout
 

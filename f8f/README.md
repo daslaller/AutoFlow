@@ -24,3 +24,4 @@ AutoFlowBuilder(
 - Host API: [docs/HOST_API.md](docs/HOST_API.md)
 - RepairX playbook: [docs/REPAIRX.md](docs/REPAIRX.md)
 - Preview engine: [docs/ENGINE.md](docs/ENGINE.md)
+- Named default looks: `AnchorThemePresets` (`midnight`, `workshop`, `harbor`, `studio`)

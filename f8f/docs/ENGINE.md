@@ -52,8 +52,10 @@ unrelated nodes.
 
 Semantic tokens (`AnchorColors.primary`, kind accents, status colors, …)
 read from `AnchorColors.active` (`AnchorColorsData`). Set it before
-mounting `AutoFlowBuilder`. Numbered shades (`slate500`, `blue50`, …) stay
-fixed — see `lib/theme/anchor_colors.dart`.
+mounting `AutoFlowBuilder`. Named default-look alternatives
+(`AnchorThemePresets`: `anchor`, `midnight`, `workshop`, `harbor`,
+`studio`) are also `AnchorColorsData` instances. Numbered shades
+(`slate500`, `blue50`, …) stay fixed — see `lib/theme/anchor_colors.dart`.
 
 ## Follow-up
 

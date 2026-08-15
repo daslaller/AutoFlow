@@ -4,26 +4,40 @@ import 'package:autoflow/theme/anchor_spacing.dart';
 import 'package:autoflow/theme/anchor_typography.dart';
 
 ThemeData buildAnchorTheme() {
-  final colorScheme = ColorScheme.light(
-    primary: AnchorColors.primary,
-    onPrimary: AnchorColors.primaryForeground,
-    secondary: AnchorColors.secondary,
-    onSecondary: AnchorColors.secondaryForeground,
-    error: AnchorColors.destructive,
-    onError: AnchorColors.destructiveForeground,
-    surface: AnchorColors.card,
-    onSurface: AnchorColors.foreground,
-    outline: AnchorColors.border,
-  );
+  final light = AnchorColors.surfaceIsLight;
+  final colorScheme = light
+      ? ColorScheme.light(
+          primary: AnchorColors.primary,
+          onPrimary: AnchorColors.primaryForeground,
+          secondary: AnchorColors.secondary,
+          onSecondary: AnchorColors.secondaryForeground,
+          error: AnchorColors.destructive,
+          onError: AnchorColors.destructiveForeground,
+          surface: AnchorColors.card,
+          onSurface: AnchorColors.foreground,
+          outline: AnchorColors.border,
+        )
+      : ColorScheme.dark(
+          primary: AnchorColors.primary,
+          onPrimary: AnchorColors.primaryForeground,
+          secondary: AnchorColors.secondary,
+          onSecondary: AnchorColors.secondaryForeground,
+          error: AnchorColors.destructive,
+          onError: AnchorColors.destructiveForeground,
+          surface: AnchorColors.card,
+          onSurface: AnchorColors.foreground,
+          outline: AnchorColors.border,
+        );
 
   return ThemeData(
     useMaterial3: true,
+    brightness: light ? Brightness.light : Brightness.dark,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: Colors.transparent,
     textTheme: AnchorTypography.textTheme,
     fontFamily: null,
     appBarTheme: AppBarTheme(
-      backgroundColor: AnchorColors.white,
+      backgroundColor: AnchorColors.card,
       foregroundColor: AnchorColors.foreground,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -40,7 +54,7 @@ ThemeData buildAnchorTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AnchorColors.white,
+      fillColor: AnchorColors.card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),

@@ -96,6 +96,8 @@ class AnchorColorsData {
     required this.sidebarBg,
     required this.sidebarBorder,
     required this.sidebarFgMuted,
+    this.sidebarFg,
+    this.sidebarInputBg,
     required this.kindTrigger,
     required this.kindAction,
     required this.kindCondition,
@@ -190,6 +192,13 @@ class AnchorColorsData {
   final Color sidebarBg;
   final Color sidebarBorder;
   final Color sidebarFgMuted;
+
+  /// Palette item / search text. Null derives from [sidebarBg] luminance
+  /// (light-on-dark for a dark rail, [foreground] for a light rail).
+  final Color? sidebarFg;
+
+  /// Search field fill in the node rail. Null derives from [sidebarBg].
+  final Color? sidebarInputBg;
 
   /// Accent colors for the five node kinds (chips/wires only — never a
   /// card's left border, per the original design note this carries over).
@@ -305,6 +314,29 @@ abstract final class AnchorColors {
   static Color get sidebarBg => active.sidebarBg;
   static Color get sidebarBorder => active.sidebarBorder;
   static Color get sidebarFgMuted => active.sidebarFgMuted;
+
+  static bool get sidebarIsDark => active.sidebarBg.computeLuminance() < 0.45;
+
+  static Color get sidebarFg =>
+      active.sidebarFg ?? (sidebarIsDark ? slate200 : active.foreground);
+
+  static Color get sidebarInputBg =>
+      active.sidebarInputBg ?? (sidebarIsDark ? slate800 : active.muted);
+
+  static bool get surfaceIsLight => active.card.computeLuminance() > 0.45;
+
+  /// Top-bar / panel icon and label color. Keeps the shipped Anchor
+  /// `slate600` on light cards; follows [mutedForeground] on dark ones.
+  static Color get chromeFg => surfaceIsLight ? slate600 : active.mutedForeground;
+
+  static Color get chromeMuted =>
+      surfaceIsLight ? slate400 : active.sidebarFgMuted;
+
+  static Color get chromeDisabled => surfaceIsLight ? slate300 : active.border;
+
+  static Color get topBarFill => active.card.withValues(alpha: 0.95);
+
+  static Color get panelFill => active.card.withValues(alpha: 0.97);
 
   /// Kind accents for workflow nodes (chips/wires only — not card left borders).
   static Color get kindTrigger => active.kindTrigger;

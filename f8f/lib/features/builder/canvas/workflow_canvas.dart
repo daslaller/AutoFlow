@@ -534,6 +534,14 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
                                     panY: s.panY,
                                     zoom: s.zoom,
                                     emphasize: s.snapToGrid,
+                                    dotColor: s.snapToGrid
+                                        ? (AnchorColors.surfaceIsLight
+                                            ? AnchorColors.slate300
+                                            : AnchorColors.border)
+                                        : (AnchorColors.surfaceIsLight
+                                            ? AnchorColors.slate200
+                                            : AnchorColors.border
+                                                .withValues(alpha: 0.85)),
                                   ),
                                   child: const SizedBox.expand(),
                                 ),
@@ -654,17 +662,17 @@ class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
                                       'Scroll to zoom · drag canvas to pan · Del to remove',
                                       textAlign: TextAlign.center,
                                       style: AnchorTypography.monoSmall.copyWith(
-                                        color: AnchorColors.slate400,
+                                        color: AnchorColors.chromeMuted,
                                       ),
                                     ),
                                   ),
                                 ),
                                 if (s.doc.nodes.isEmpty)
-                                  const Center(
+                                  Center(
                                     child: Text(
                                       'No nodes yet — drag from the palette',
                                       style: TextStyle(
-                                        color: AnchorColors.slate500,
+                                        color: AnchorColors.chromeMuted,
                                       ),
                                     ),
                                   ),
@@ -690,19 +698,20 @@ class _DotGridPainter extends CustomPainter {
     required this.panX,
     required this.panY,
     required this.zoom,
+    required this.dotColor,
     this.emphasize = false,
   });
 
   final double panX;
   final double panY;
   final double zoom;
+  final Color dotColor;
   final bool emphasize;
 
   @override
   void paint(Canvas canvas, Size size) {
     const step = 28.0;
-    final paint = Paint()
-      ..color = emphasize ? AnchorColors.slate300 : AnchorColors.slate200;
+    final paint = Paint()..color = dotColor;
     final ox = panX % (step * zoom);
     final oy = panY % (step * zoom);
     final spacing = step * zoom;
@@ -719,6 +728,7 @@ class _DotGridPainter extends CustomPainter {
     return oldDelegate.panX != panX ||
         oldDelegate.panY != panY ||
         oldDelegate.zoom != zoom ||
-        oldDelegate.emphasize != emphasize;
+        oldDelegate.emphasize != emphasize ||
+        oldDelegate.dotColor != dotColor;
   }
 }

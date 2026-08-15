@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>F8F — Stage</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #111827;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, #dbeafe 0%, transparent 50%),
+        radial-gradient(900px 500px at 100% 80%, #f3e8ff 0%, transparent 45%),
+        #f8fafc;
+    }
+    .canvas { position: absolute; inset: 0; }
+    .dots {
+      position: absolute; inset: 0;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1.2px);
+      background-size: 32px 32px;
+      opacity: 0.7;
+    }
+    .chip {
+      position: absolute; top: 16px; left: 16px;
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.86); backdrop-filter: blur(10px);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 16px; padding: 10px 14px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+    }
+    .mark {
+      width: 32px; height: 32px; border-radius: 10px;
+      background: #111827; color: #fff; display: grid; place-items: center;
+    }
+    .chip .k { font-size: 11px; color: #6b7280; }
+    .chip .v { font-size: 14px; font-weight: 650; }
+    .lib {
+      position: absolute; top: 16px; left: 16px; margin-top: 64px;
+      width: 248px; height: 520px;
+      background: rgba(255,255,255,0.9); backdrop-filter: blur(12px);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.10);
+      padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .lib h2 { margin: 0; font-size: 13px; font-weight: 650; }
+    .lib input {
+      border: 0; background: #f3f4f6; border-radius: 10px; padding: 8px 10px; font-size: 12px;
+    }
+    .grp { font-size: 10px; letter-spacing: 0.12em; color: #9ca3af; font-weight: 650; margin: 8px 0 4px; }
+    .it { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 13px; }
+    .ic {
+      width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; color: #fff;
+    }
+    .dock {
+      position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 4px;
+      background: #111827; color: #e5e7eb; border-radius: 999px;
+      padding: 6px 8px 6px 10px;
+      box-shadow: 0 12px 32px rgba(15,23,42,0.28);
+    }
+    .dock button {
+      border: 0; background: transparent; color: inherit; font-size: 12px;
+      padding: 6px 8px; border-radius: 999px;
+    }
+    .dock .go { background: #fff; color: #111827; font-weight: 650; padding: 6px 12px; }
+    .dock .d { width: 1px; height: 16px; background: #374151; margin: 0 4px; }
+    .props {
+      position: absolute; top: 16px; right: 16px; width: 260px;
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 20px; padding: 16px;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.10);
+    }
+    .props .ey { font-size: 11px; color: #6b7280; }
+    .props h3 { margin: 2px 0 12px; font-size: 16px; }
+    .props label { display: block; font-size: 11px; color: #6b7280; margin: 8px 0 4px; }
+    .props input, .props select {
+      width: 100%; border: 0; background: #f3f4f6; border-radius: 10px; padding: 8px 10px; font-size: 12px;
+    }
+    .node {
+      position: absolute; height: 64px; min-width: 196px;
+      background: #fff; border-radius: 999px;
+      display: flex; align-items: center; gap: 10px; padding: 0 16px 0 8px;
+      box-shadow: 0 8px 20px rgba(15,23,42,0.08);
+    }
+    .node.sel { box-shadow: 0 0 0 3px #fff, 0 0 0 6px #111827, 0 8px 20px rgba(15,23,42,0.08); }
+    .n-ic {
+      width: 48px; height: 48px; border-radius: 999px; display: grid; place-items: center; color: #fff; flex: 0 0 48px;
+    }
+    .n-t { font-size: 13px; font-weight: 650; }
+    .n-s { font-size: 11px; color: #6b7280; }
+    svg.w { position: absolute; inset: 0; pointer-events: none; }
+    .map {
+      position: absolute; right: 16px; bottom: 20px; width: 140px; height: 90px;
+      background: rgba(255,255,255,0.8); border-radius: 12px;
+      border: 1px solid rgba(15,23,42,0.08);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.08);
+    }
+    .map .v { position: absolute; left: 18px; top: 16px; width: 70px; height: 44px; border: 1.5px solid #111827; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="dots"></div>
+    <svg class="w" width="2000" height="900">
+      <path d="M486 292 C 500 292, 508 292, 510 292" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+      <path d="M706 292 C 724 292, 738 292, 740 292" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+      <path d="M936 292 C 954 292, 968 292, 970 292" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+      <path d="M1166 292 C 1174 220, 1176 192, 1180 192" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+      <path d="M1166 292 C 1174 360, 1176 432, 1180 432" fill="none" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+
+    <div class="node" style="left:290px;top:260px">
+      <div class="n-ic" style="background:#059669"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
+      <div><div class="n-t">Message Received</div><div class="n-s">SMS inbound</div></div>
+    </div>
+    <div class="node sel" style="left:510px;top:260px">
+      <div class="n-ic" style="background:#2563eb"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+      <div><div class="n-t">HTTP Request</div><div class="n-s">GET /crm/customer</div></div>
+    </div>
+    <div class="node" style="left:740px;top:260px">
+      <div class="n-ic" style="background:#7c3aed"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/></svg></div>
+      <div><div class="n-t">JSON Map</div><div class="n-s">reshape payload</div></div>
+    </div>
+    <div class="node" style="left:970px;top:260px;min-width:160px">
+      <div class="n-ic" style="background:#d97706"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v6a6 6 0 0 0 6 6h6"/><path d="M6 21v-6a6 6 0 0 1 6-6h6"/></svg></div>
+      <div><div class="n-t">If / Else</div><div class="n-s">intake?</div></div>
+    </div>
+    <div class="node" style="left:1180px;top:160px;min-width:160px">
+      <div class="n-ic" style="background:#2563eb"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></div>
+      <div><div class="n-t">Send Message</div><div class="n-s">true</div></div>
+    </div>
+    <div class="node" style="left:1180px;top:400px;min-width:160px">
+      <div class="n-ic" style="background:#e11d48"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/></svg></div>
+      <div><div class="n-t">Notify</div><div class="n-s">false</div></div>
+    </div>
+
+    <div class="chip">
+      <div class="mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
+      <div><div class="k">AutoFlow</div><div class="v">Customer Onboarding</div></div>
+    </div>
+    <aside class="lib">
+      <h2>Add to canvas</h2>
+      <input placeholder="Search nodes" readonly />
+      <div>
+        <div class="grp">TRIGGERS</div>
+        <div class="it"><div class="ic" style="background:#059669"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>Webhook</div>
+        <div class="it"><div class="ic" style="background:#059669"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>Message Received</div>
+        <div class="grp">ACTIONS</div>
+        <div class="it"><div class="ic" style="background:#2563eb"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 12h14"/></svg></div>HTTP Request</div>
+        <div class="it"><div class="ic" style="background:#2563eb"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 12h14"/></svg></div>Send Message</div>
+        <div class="grp">LOGIC</div>
+        <div class="it"><div class="ic" style="background:#d97706"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 3v12h12"/></svg></div>If / Else</div>
+        <div class="it"><div class="ic" style="background:#d97706"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 3v12h12"/></svg></div>Switch</div>
+      </div>
+    </aside>
+    <aside class="props">
+      <div class="ey">Selected</div>
+      <h3>HTTP Request</h3>
+      <label>Method</label>
+      <select><option>GET</option></select>
+      <label>URL</label>
+      <input value="https://crm.internal/customer" readonly />
+      <label>Insert from record</label>
+      <input value="{{customer.id}}" readonly />
+    </aside>
+    <div class="dock">
+      <button type="button">Undo</button>
+      <button type="button">Redo</button>
+      <div class="d"></div>
+      <button type="button">Snap</button>
+      <button type="button">−</button>
+      <button type="button">82%</button>
+      <button type="button">+</button>
+      <div class="d"></div>
+      <button type="button">Record</button>
+      <button class="go" type="button">Preview</button>
+    </div>
+    <div class="map"><div class="v"></div></div>
+  </div>
+</body>
+</html>

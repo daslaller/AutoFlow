@@ -32,6 +32,26 @@ AnchorColors.active = AnchorColorsData(
 );
 ```
 
+The package also ships named **default-look alternatives** — use these when
+you want a different F8F skin rather than mapping a host design system:
+
+```dart
+import 'package:autoflow/autoflow.dart';
+
+AnchorThemePresets.apply('midnight'); // or workshop / harbor / studio
+```
+
+| Id | Look |
+| --- | --- |
+| `anchor` | Shipped default — light slate canvas, blue→purple brand, light node rail |
+| `midnight` | Dark canvas editor — sky primary, violet accent |
+| `workshop` | Warm paper and copper — shop-floor / RepairX-shaped |
+| `harbor` | Teal / navy nautical — calmer than blue-purple |
+| `studio` | Ink and zinc, light sidebar — one accent |
+
+The standalone demo accepts `?theme=midnight` (and a Look picker in full
+chrome). `picker=0` hides the picker.
+
 The raw numbered palette (`AnchorColors.slate500`, `.blue50`, ...) stays
 fixed — see the doc comment on `_RawPalette` in that file for why.
 

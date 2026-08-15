@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoFlow</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #0f172a;
+      --card: #ffffff;
+      --muted: #f1f5f9;
+      --muted-fg: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-fg: #ffffff;
+      --accent: #9333ea;
+      --sidebar: #0f172a;
+      --sidebar-border: #334155;
+      --sidebar-fg: #e2e8f0;
+      --sidebar-muted: #94a3b8;
+      --sidebar-input: #1e293b;
+      --kind-trigger: #059669;
+      --kind-action: #2563eb;
+      --kind-condition: #eab308;
+      --kind-transform: #9333ea;
+      --kind-output: #f43f5e;
+      --status: #94a3b8;
+      --chrome: #475569;
+      --chrome-muted: #94a3b8;
+      --dot: #e2e8f0;
+      --wire-idle: #cbd5e1;
+      --page-a: #f8fafc;
+      --page-b: #eff6ff;
+      --brand-a: #2563eb;
+      --brand-b: #7e22ce;
+      --topbar: rgba(255,255,255,0.95);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--fg);
+      background: linear-gradient(135deg, var(--page-a), var(--page-b));
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .topbar {
+      height: 56px;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      background: var(--topbar);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      gap: 8px;
+      z-index: 2;
+    }
+    .logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(90deg, var(--brand-a), var(--brand-b));
+      display: grid; place-items: center; color: #fff; flex: 0 0 auto;
+    }
+    .brand {
+      font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: var(--fg);
+    }
+    .vsep { width: 1px; height: 20px; background: var(--border); margin: 0 4px 0 4px; }
+    .flow-name { font-size: 13px; color: var(--chrome); flex: 0 1 220px; }
+    .spacer { flex: 1; }
+    .ibtn {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card);
+      display: grid; place-items: center; color: var(--chrome);
+    }
+    .ibtn.on { color: var(--primary); }
+    .ibtn.dim { color: #cbd5e1; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px; color: var(--muted-fg); letter-spacing: 0.5px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      padding: 6px 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--fg);
+    }
+    .btn.preview {
+      border: 0; color: #fff;
+      background: linear-gradient(90deg, var(--brand-a), var(--brand-b));
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .body { display: flex; flex: 1; min-height: 0; }
+    .sidebar {
+      width: 240px; min-width: 240px;
+      background: var(--sidebar);
+      color: var(--sidebar-fg);
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--sidebar-border);
+    }
+    .side-h {
+      padding: 16px 14px 8px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px; letter-spacing: 2px; color: var(--sidebar-muted);
+    }
+    .search {
+      margin: 0 12px;
+      background: var(--sidebar-input);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 8px;
+      color: var(--sidebar-fg);
+      font-size: 12px;
+      padding: 8px 10px;
+    }
+    .search::placeholder { color: var(--sidebar-muted); }
+    .side-list { flex: 1; overflow: hidden; padding: 4px 8px 16px; }
+    .khead {
+      padding: 12px 6px 4px;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px; letter-spacing: 1.6px; font-weight: 500;
+    }
+    .item { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 7px; }
+    .ico {
+      width: 26px; height: 26px; border-radius: 5px;
+      display: grid; place-items: center; flex: 0 0 auto;
+    }
+    .item .lab { font-size: 12px; font-weight: 500; color: var(--sidebar-fg); }
+    .item .sub { font-size: 10px; color: var(--sidebar-muted); }
+    .side-foot {
+      padding: 12px; border-top: 1px solid var(--sidebar-border);
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px; color: var(--sidebar-muted); line-height: 1.55;
+    }
+    .canvas {
+      flex: 1; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, var(--page-a), var(--page-b));
+    }
+    .dots {
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, var(--dot) 1.2px, transparent 1.3px);
+      background-size: 23px 23px;
+      background-position: 80px 90px;
+    }
+    .world {
+      position: absolute; top: 0; left: 0;
+      width: 6000px; height: 6000px;
+      transform: translate(80px, 90px) scale(0.82);
+      transform-origin: 0 0;
+    }
+    .hint {
+      position: absolute; left: 0; right: 0; bottom: 16px;
+      text-align: center;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px; letter-spacing: 0.5px; color: var(--chrome-muted);
+    }
+    .node {
+      position: absolute; width: 218px; height: 78px;
+      background: var(--card); border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      border: 1px solid transparent;
+      display: flex; align-items: center; padding: 0 12px; gap: 10px;
+    }
+    .n-ico {
+      width: 32px; height: 32px; border-radius: 7px;
+      display: grid; place-items: center; flex: 0 0 auto;
+    }
+    .n-title { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+    .badge {
+      display: inline-block; margin-top: 4px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.6px;
+      padding: 2px 8px; border-radius: 999px;
+    }
+    .n-status {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--status); margin-left: auto;
+    }
+    .port {
+      position: absolute; width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid; top: 31px; background: var(--card);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .port.in { left: -8px; }
+    .port.out { right: -8px; background: currentColor; }
+    svg.wires { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="logo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z"/></svg>
+      </div>
+      <div class="brand">AutoFlow</div>
+      <div class="vsep"></div>
+      <div class="flow-name">Customer Onboarding Flow</div>
+      <div class="spacer"></div>
+      <div class="ibtn dim">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </div>
+      <div class="ibtn dim">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+      </div>
+      <div class="ibtn on">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </div>
+      <div class="ibtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/></svg>
+      </div>
+      <div class="ibtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+      </div>
+      <div class="mono" style="margin: 0 8px;">6 nodes · 5 edges</div>
+      <div class="ibtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      </div>
+      <div class="ibtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg>
+      </div>
+      <div class="ibtn"><span style="font-size:16px;line-height:1">−</span></div>
+      <div class="mono" style="width:42px;text-align:center;color:var(--chrome)">82%</div>
+      <div class="ibtn"><span style="font-size:16px;line-height:1">+</span></div>
+      <button class="btn" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+        Record
+      </button>
+      <button class="btn preview" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Preview
+      </button>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="side-h">NODES</div>
+        <input class="search" placeholder="Search…" readonly />
+        <div class="side-list" id="palette"></div>
+        <div class="side-foot">Drag to canvas<br/>G toggles snap<br/>Click wire to delete</div>
+      </aside>
+      <main class="canvas">
+        <div class="dots"></div>
+        <div class="world" id="world"></div>
+        <div class="hint">Scroll to zoom · drag canvas to pan · Del to remove</div>
+      </main>
+    </div>
+  </div>
+  <script>
+    const themes = {
+      anchor: {
+        bg:"#ffffff", fg:"#0f172a", card:"#ffffff", muted:"#f1f5f9", mutedFg:"#64748b",
+        border:"#e2e8f0", primary:"#2563eb", primaryFg:"#ffffff", accent:"#9333ea",
+        sidebar:"#0f172a", sidebarBorder:"#334155", sidebarFg:"#e2e8f0",
+        sidebarMuted:"#94a3b8", sidebarInput:"#1e293b",
+        kT:"#059669", kA:"#2563eb", kC:"#eab308", kX:"#9333ea", kO:"#f43f5e",
+        status:"#94a3b8", chrome:"#475569", chromeMuted:"#94a3b8", dot:"#e2e8f0",
+        wireIdle:"#cbd5e1", pageA:"#f8fafc", pageB:"#eff6ff", brandA:"#2563eb", brandB:"#7e22ce",
+        topbar:"rgba(255,255,255,0.95)"
+      },
+      midnight: {
+        bg:"#0b1220", fg:"#e8eef7", card:"#141c2c", muted:"#1c2740", mutedFg:"#8b9bb4",
+        border:"#243049", primary:"#38bdf8", primaryFg:"#082f49", accent:"#a78bfa",
+        sidebar:"#080d18", sidebarBorder:"#1e2a40", sidebarFg:"#d7e3f4",
+        sidebarMuted:"#7c8ca8", sidebarInput:"#121a2c",
+        kT:"#34d399", kA:"#38bdf8", kC:"#fbbf24", kX:"#a78bfa", kO:"#fb7185",
+        status:"#64748b", chrome:"#8b9bb4", chromeMuted:"#7c8ca8", dot:"#243049",
+        wireIdle:"#3b4d6b", pageA:"#070b14", pageB:"#102038", brandA:"#38bdf8", brandB:"#a78bfa",
+        topbar:"rgba(20,28,44,0.95)"
+      },
+      workshop: {
+        bg:"#fbf7f2", fg:"#1c1410", card:"#fffcf8", muted:"#f3e9dc", mutedFg:"#8a7464",
+        border:"#e6d5c3", primary:"#c2410c", primaryFg:"#fff7ed", accent:"#b45309",
+        sidebar:"#1f1612", sidebarBorder:"#3f2e24", sidebarFg:"#f3e9dc",
+        sidebarMuted:"#b8a090", sidebarInput:"#2c211a",
+        kT:"#059669", kA:"#c2410c", kC:"#d97706", kX:"#7c3aed", kO:"#be123c",
+        status:"#a78b77", chrome:"#6b4f3f", chromeMuted:"#a78b77", dot:"#e6d5c3",
+        wireIdle:"#d4bda6", pageA:"#fbf7f2", pageB:"#f7ede0", brandA:"#ea580c", brandB:"#b45309",
+        topbar:"rgba(255,252,248,0.95)"
+      },
+      harbor: {
+        bg:"#f7fbfc", fg:"#0b1f2a", card:"#ffffff", muted:"#e7f1f4", mutedFg:"#5b7480",
+        border:"#c5d8df", primary:"#0f766e", primaryFg:"#f0fdfa", accent:"#0369a1",
+        sidebar:"#0b1f2a", sidebarBorder:"#1e3a4c", sidebarFg:"#d7ebf1",
+        sidebarMuted:"#7fa3b2", sidebarInput:"#122a38",
+        kT:"#0d9488", kA:"#0284c7", kC:"#ca8a04", kX:"#4f46e5", kO:"#e11d48",
+        status:"#7fa3b2", chrome:"#5b7480", chromeMuted:"#7fa3b2", dot:"#c5d8df",
+        wireIdle:"#a9c5d0", pageA:"#f4fafb", pageB:"#e8f4f6", brandA:"#0d9488", brandB:"#0369a1",
+        topbar:"rgba(255,255,255,0.95)"
+      },
+      studio: {
+        bg:"#fafafa", fg:"#18181b", card:"#ffffff", muted:"#f4f4f5", mutedFg:"#71717a",
+        border:"#e4e4e7", primary:"#18181b", primaryFg:"#fafafa", accent:"#7c3aed",
+        sidebar:"#ffffff", sidebarBorder:"#e4e4e7", sidebarFg:"#18181b",
+        sidebarMuted:"#71717a", sidebarInput:"#f4f4f5",
+        kT:"#16a34a", kA:"#18181b", kC:"#ca8a04", kX:"#7c3aed", kO:"#e11d48",
+        status:"#a1a1aa", chrome:"#52525b", chromeMuted:"#a1a1aa", dot:"#e4e4e7",
+        wireIdle:"#d4d4d8", pageA:"#ffffff", pageB:"#f4f4f5", brandA:"#18181b", brandB:"#3f3f46",
+        topbar:"rgba(255,255,255,0.95)"
+      }
+    };
+
+    const icons = {
+      trigger: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z"/></svg>',
+      action: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+      condition: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3v6a6 6 0 0 0 6 6h6"/><path d="M6 21v-6a6 6 0 0 1 6-6h6"/><circle cx="18" cy="9" r="2"/><circle cx="18" cy="15" r="2"/></svg>',
+      transform: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 7 4 4-4 4"/><path d="m6 7-4 4 4 4"/><path d="M11 4 8 20"/><path d="m16 4-3 16"/></svg>',
+      output: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>'
+    };
+
+    const palette = [
+      { kind: 'trigger', color: 'kT', label: 'TRIGGER', items: [
+        ['Webhook', 'Receive HTTP requests'],
+        ['Schedule', 'Cron-based timing'],
+        ['Message Received', 'Inbound SMS / chat / email'],
+        ['Status Changed', 'Ticket status transition'],
+      ]},
+      { kind: 'action', color: 'kA', label: 'ACTION', items: [
+        ['HTTP Request', 'Outbound API call'],
+        ['Send Message', 'Reply on ticket channel'],
+        ['Update Status', 'Set ticket status'],
+        ['Assign Tech', 'Assign technician'],
+      ]},
+      { kind: 'condition', color: 'kC', label: 'LOGIC', items: [
+        ['If / Else', 'Conditional branch'],
+        ['Switch', 'Multi-case routing'],
+      ]},
+      { kind: 'transform', color: 'kX', label: 'TRANSFORM', items: [
+        ['JSON Map', 'Reshape data structure'],
+        ['Code', 'Expression / JS / Dart snippet'],
+      ]},
+      { kind: 'output', color: 'kO', label: 'OUTPUT', items: [
+        ['Notify', 'Push notification'],
+        ['HTTP Response', 'Return API response'],
+      ]},
+    ];
+
+    const nodes = [
+      { id:'n1', x:60,  y:190, title:'Message Received', kind:'trigger',   color:'kT', badge:'TRIGGER' },
+      { id:'n2', x:360, y:190, title:'HTTP Request',     kind:'action',    color:'kA', badge:'ACTION' },
+      { id:'n3', x:660, y:190, title:'JSON Map',         kind:'transform', color:'kX', badge:'TRANSFORM' },
+      { id:'n4', x:960, y:190, title:'If / Else',        kind:'condition', color:'kC', badge:'LOGIC' },
+      { id:'n5', x:1260,y:80,  title:'Send Message',     kind:'action',    color:'kA', badge:'ACTION' },
+      { id:'n6', x:1260,y:310, title:'Notify',           kind:'output',    color:'kO', badge:'OUTPUT' },
+    ];
+    const wires = [
+      ['n1','n2','kT'], ['n2','n3','kA'], ['n3','n4','kX'], ['n4','n5','kC'], ['n4','n6','kC']
+    ];
+
+    function hexToRgb(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      return [(n>>16)&255, (n>>8)&255, n&255];
+    }
+    function withAlpha(hex, a) {
+      const [r,g,b] = hexToRgb(hex);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    function applyTheme(id) {
+      const t = themes[id] || themes.anchor;
+      const r = document.documentElement.style;
+      r.setProperty('--bg', t.bg);
+      r.setProperty('--fg', t.fg);
+      r.setProperty('--card', t.card);
+      r.setProperty('--muted', t.muted);
+      r.setProperty('--muted-fg', t.mutedFg);
+      r.setProperty('--border', t.border);
+      r.setProperty('--primary', t.primary);
+      r.setProperty('--primary-fg', t.primaryFg);
+      r.setProperty('--accent', t.accent);
+      r.setProperty('--sidebar', t.sidebar);
+      r.setProperty('--sidebar-border', t.sidebarBorder);
+      r.setProperty('--sidebar-fg', t.sidebarFg);
+      r.setProperty('--sidebar-muted', t.sidebarMuted);
+      r.setProperty('--sidebar-input', t.sidebarInput);
+      r.setProperty('--kind-trigger', t.kT);
+      r.setProperty('--kind-action', t.kA);
+      r.setProperty('--kind-condition', t.kC);
+      r.setProperty('--kind-transform', t.kX);
+      r.setProperty('--kind-output', t.kO);
+      r.setProperty('--status', t.status);
+      r.setProperty('--chrome', t.chrome);
+      r.setProperty('--chrome-muted', t.chromeMuted);
+      r.setProperty('--dot', t.dot);
+      r.setProperty('--wire-idle', t.wireIdle);
+      r.setProperty('--page-a', t.pageA);
+      r.setProperty('--page-b', t.pageB);
+      r.setProperty('--brand-a', t.brandA);
+      r.setProperty('--brand-b', t.brandB);
+      r.setProperty('--topbar', t.topbar);
+      document.body.style.background = `linear-gradient(135deg, ${t.pageA}, ${t.pageB})`;
+      return t;
+    }
+
+    function render(t) {
+      const pal = document.getElementById('palette');
+      pal.innerHTML = palette.map(g => {
+        const c = t[g.color];
+        return `<div class="khead" style="color:${withAlpha(c,0.75)}">${g.label}</div>` +
+          g.items.map(([lab, sub]) => `
+            <div class="item">
+              <div class="ico" style="background:${withAlpha(c,0.15)};color:${c}">${icons[g.kind]}</div>
+              <div><div class="lab">${lab}</div><div class="sub">${sub}</div></div>
+            </div>`).join('');
+      }).join('');
+
+      const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+      const paths = wires.map(([from, to, col]) => {
+        const a = byId[from], b = byId[to];
+        const x1 = a.x + 218, y1 = a.y + 39;
+        const x2 = b.x, y2 = b.y + 39;
+        const cx = Math.max(Math.abs(x2 - x1) * 0.45, 60);
+        const color = t[col];
+        return `<path d="M${x1} ${y1} C${x1+cx} ${y1}, ${x2-cx} ${y2}, ${x2} ${y2}"
+          fill="none" stroke="${withAlpha(color,0.22)}" stroke-width="4.25" stroke-linecap="round"/>
+          <path d="M${x1} ${y1} C${x1+cx} ${y1}, ${x2-cx} ${y2}, ${x2} ${y2}"
+          fill="none" stroke="${withAlpha(color,0.55)}" stroke-width="1.75" stroke-linecap="round"/>`;
+      }).join('');
+
+      const cards = nodes.map(n => {
+        const c = t[n.color];
+        return `<div class="node" style="left:${n.x}px;top:${n.y}px">
+          <div class="n-ico" style="background:${withAlpha(c,0.12)};color:${c}">${icons[n.kind]}</div>
+          <div>
+            <div class="n-title">${n.title}</div>
+            <span class="badge" style="background:${withAlpha(c,0.12)};color:${c}">${n.badge}</span>
+          </div>
+          <div class="n-status"></div>
+          <div class="port in" style="border-color:${t.status}"></div>
+          <div class="port out" style="color:${c};border-color:${c}"></div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('world').innerHTML =
+        `<svg class="wires" width="6000" height="6000">${paths}</svg>${cards}`;
+    }
+
+    const id = new URLSearchParams(location.search).get('theme') || 'anchor';
+    document.title = 'AutoFlow — ' + id;
+    const t = applyTheme(id);
+    render(t);
+  </script>
+</body>
+</html>
