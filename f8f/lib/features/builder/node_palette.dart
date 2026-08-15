@@ -142,7 +142,7 @@ class NodePalette extends ConsumerWidget {
               border: Border(top: BorderSide(color: AnchorColors.sidebarBorder)),
             ),
             child: Text(
-              'Drag onto the canvas\nG snaps to grid · click a wire to delete',
+              'Drag onto the canvas\nScroll to zoom · drag to pan',
               style: TextStyle(
                 fontSize: 11,
                 height: 1.5,

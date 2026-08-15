@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_nodes_visual_scripting/fl_nodes_visual_scripting.dart';
 import 'package:uuid/uuid.dart';
 import 'package:autoflow/data/workflow_repository.dart';
 import 'package:autoflow/domain/catalog.dart';
@@ -9,8 +11,8 @@ import 'package:autoflow/domain/demo_workflow.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/domain/records.dart';
 import 'package:autoflow/domain/variables.dart';
-import 'package:autoflow/features/run/simulation_engine.dart';
-import 'package:autoflow/theme/anchor_spacing.dart';
+import 'package:autoflow/features/builder/canvas/heid_graph.dart';
+import 'package:autoflow/features/builder/canvas/heid_prototypes.dart';
 
 class WorkflowUiState {
   const WorkflowUiState({
@@ -192,23 +194,33 @@ class WorkflowHostHooks {
 
 class WorkflowController extends Notifier<WorkflowUiState> {
   final _repo = WorkflowRepository();
-  final _engine = SimulationEngine();
   final _uuid = const Uuid();
   Timer? _saveDebounce;
   bool _cancelRun = false;
   WorkflowHostHooks hooks = const WorkflowHostHooks();
+  late final HeidGraph graph;
+  StreamSubscription<NodeEditorEvent>? _heidSub;
 
   final List<WorkflowDoc> _undo = [];
   final List<WorkflowDoc> _redo = [];
 
   @override
   WorkflowUiState build() {
+    final catalog = buildDefaultCatalog();
+    graph = HeidGraph(catalog: catalog, session: PreviewSession());
+    _heidSub = graph.controller.eventBus.events.listen(_onHeidEvent);
+    ref.onDispose(() {
+      _heidSub?.cancel();
+      _cancelRun = true;
+      graph.controller.runner.abort();
+      graph.dispose();
+    });
     Future.microtask(_bootstrap);
     final records = buildDefaultPreviewRecords();
     final first = records.first;
     return WorkflowUiState(
       doc: createDemoWorkflow(),
-      catalog: buildDefaultCatalog(),
+      catalog: catalog,
       variables: buildDefaultVariableSchema(),
       sampleRecord: first.data,
       previewRecords: records,
@@ -216,9 +228,60 @@ class WorkflowController extends Notifier<WorkflowUiState> {
     );
   }
 
+  void _onHeidEvent(NodeEditorEvent event) {
+    if (graph.isApplying || event.isHandled) return;
+    if (event is FlNodeSelectionEvent) {
+      if (event.type == FlSelectionEventType.deselect) {
+        select(null, fromHeid: true);
+      } else {
+        selectMany(event.nodeIds, fromHeid: true);
+      }
+      return;
+    }
+    if (event is FlViewportOffsetEvent) {
+      state = state.copyWith(
+        panX: graph.controller.viewportOffset.dx,
+        panY: graph.controller.viewportOffset.dy,
+      );
+      return;
+    }
+    if (event is FlViewportZoomEvent) {
+      state = state.copyWith(zoom: graph.controller.viewportZoom);
+      return;
+    }
+    if (event is FlAddNodeEvent ||
+        event is FlRemoveNodeEvent ||
+        event is FlAddLinkEvent ||
+        event is FlRemoveLinkEvent ||
+        event is FlDragSelectionCommitEvent ||
+        event is FlPasteSelectionEvent) {
+      if (state.embedConfig.readOnly) {
+        unawaited(graph.loadDoc(state.doc, state.catalog));
+        return;
+      }
+      _syncFromHeid();
+    }
+  }
+
+  void _syncFromHeid({bool recordUndo = true}) {
+    final statuses = {
+      for (final n in state.doc.nodes) n.iid: n.status,
+    };
+    _commit(
+      graph.exportDoc(state.doc, state.catalog, statuses: statuses),
+      recordUndo: recordUndo,
+    );
+  }
+
   Future<void> _bootstrap() async {
     final doc = await _repo.load(state.catalog);
-    state = state.copyWith(doc: doc, ready: true, validation: _validate(doc));
+    await graph.loadDoc(doc, state.catalog);
+    final exported = graph.exportDoc(doc, state.catalog);
+    state = state.copyWith(
+      doc: exported,
+      ready: true,
+      validation: _validate(exported),
+    );
   }
 
   void setHooks(WorkflowHostHooks h) => hooks = h;
@@ -311,26 +374,29 @@ class WorkflowController extends Notifier<WorkflowUiState> {
     if (_undo.isEmpty) return;
     _redo.add(state.doc);
     final prev = _undo.removeLast();
-    state = state.copyWith(
-      doc: prev,
-      canUndo: _undo.isNotEmpty,
-      canRedo: true,
-      validation: _validate(prev),
-    );
-    hooks.onWorkflowChanged?.call(prev);
+    unawaited(_restoreDoc(prev, canUndo: _undo.isNotEmpty, canRedo: true));
   }
 
   void redo() {
     if (_redo.isEmpty) return;
     _undo.add(state.doc);
     final next = _redo.removeLast();
+    unawaited(_restoreDoc(next, canUndo: true, canRedo: _redo.isNotEmpty));
+  }
+
+  Future<void> _restoreDoc(
+    WorkflowDoc doc, {
+    required bool canUndo,
+    required bool canRedo,
+  }) async {
+    await graph.loadDoc(doc, state.catalog);
     state = state.copyWith(
-      doc: next,
-      canUndo: true,
-      canRedo: _redo.isNotEmpty,
-      validation: _validate(next),
+      doc: doc,
+      canUndo: canUndo,
+      canRedo: canRedo,
+      validation: _validate(doc),
     );
-    hooks.onWorkflowChanged?.call(next);
+    hooks.onWorkflowChanged?.call(doc);
   }
 
   void setName(String name) => _commit(state.doc.copyWith(name: name));
@@ -339,19 +405,29 @@ class WorkflowController extends Notifier<WorkflowUiState> {
 
   void setSideTab(SidePanelTab tab) => state = state.copyWith(sideTab: tab);
 
-  void toggleSnapToGrid() =>
-      state = state.copyWith(snapToGrid: !state.snapToGrid);
+  void toggleSnapToGrid() {
+    final next = !state.snapToGrid;
+    graph.setSnapToGrid(next, gridSize: state.gridSize);
+    state = state.copyWith(snapToGrid: next);
+  }
 
-  void setSnapToGrid(bool v) => state = state.copyWith(snapToGrid: v);
+  void setSnapToGrid(bool v) {
+    graph.setSnapToGrid(v, gridSize: state.gridSize);
+    state = state.copyWith(snapToGrid: v);
+  }
 
   void setCatalog(NodeCatalog catalog) {
-    // Rebind node defs to new catalog types when possible.
+    graph.attachCatalog(catalog);
     final nodes = state.doc.nodes.map((n) {
       final t = catalog.find(n.def.id);
       return t == null ? n : n.copyWith(def: t.asDef);
     }).toList();
     state = state.copyWith(catalog: catalog);
-    _commit(state.doc.copyWith(nodes: nodes), recordUndo: false);
+    final next = state.doc.copyWith(nodes: nodes);
+    unawaited(() async {
+      await graph.loadDoc(next, catalog);
+      _commit(graph.exportDoc(next, catalog), recordUndo: false);
+    }());
   }
 
   void setVariables(VariableSchema schema) =>
@@ -416,6 +492,20 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   }
 
   void setPanZoom({double? panX, double? panY, double? zoom}) {
+    if (panX != null || panY != null) {
+      graph.controller.setViewportOffset(
+        Offset(panX ?? state.panX, panY ?? state.panY),
+        absolute: true,
+        animate: false,
+      );
+    }
+    if (zoom != null) {
+      graph.controller.setViewportZoom(
+        zoom.clamp(0.15, 2.5),
+        absolute: true,
+        animate: false,
+      );
+    }
     state = state.copyWith(
       panX: panX,
       panY: panY,
@@ -425,11 +515,16 @@ class WorkflowController extends Notifier<WorkflowUiState> {
 
   void zoomIn() => setPanZoom(zoom: (state.zoom * 1.2).clamp(0.15, 2.5));
   void zoomOut() => setPanZoom(zoom: (state.zoom / 1.2).clamp(0.15, 2.5));
-  void zoomReset() => state = state.copyWith(panX: 80, panY: 90, zoom: 0.82);
+  void zoomReset() {
+    graph.controller.setViewportOffset(Offset.zero, absolute: true, animate: false);
+    graph.controller.setViewportZoom(0.82, absolute: true, animate: false);
+    state = state.copyWith(panX: 80, panY: 90, zoom: 0.82);
+  }
 
-  void select(String? id, {bool additive = false}) {
+  void select(String? id, {bool additive = false, bool fromHeid = false}) {
     if (id == null) {
       state = state.copyWith(clearSelected: true, sideTab: SidePanelTab.properties);
+      if (!fromHeid) graph.setSelection(const {});
       return;
     }
     if (additive) {
@@ -445,21 +540,24 @@ class WorkflowController extends Notifier<WorkflowUiState> {
         clearSelected: next.isEmpty,
         sideTab: SidePanelTab.properties,
       );
+      if (!fromHeid) graph.setSelection(next);
     } else {
       state = state.copyWith(
         selectedId: id,
         selectedIds: {id},
         sideTab: SidePanelTab.properties,
       );
+      if (!fromHeid) graph.setSelection({id});
     }
   }
 
-  void selectMany(Set<String> ids) {
+  void selectMany(Set<String> ids, {bool fromHeid = false}) {
     state = state.copyWith(
       selectedIds: ids,
       selectedId: ids.isEmpty ? null : ids.first,
       clearSelected: ids.isEmpty,
     );
+    if (!fromHeid) graph.setSelection(ids);
   }
 
   void moveNode(String iid, double x, double y, {bool snap = false}) {
@@ -482,25 +580,29 @@ class WorkflowController extends Notifier<WorkflowUiState> {
         ? {state.selectedId!}
         : state.selectedIds;
     final step = state.snapToGrid ? state.gridSize : 1.0;
-    final nodes = state.doc.nodes.map((n) {
-      if (!ids.contains(n.iid)) return n;
-      return n.copyWith(x: _snap(n.x + dx * step), y: _snap(n.y + dy * step));
-    }).toList();
-    _commit(state.doc.copyWith(nodes: nodes));
+    for (final id in ids) {
+      final node = graph.controller.nodes[id];
+      if (node == null) continue;
+      node.offset = Offset(
+        _snap(node.offset.dx + dx * step),
+        _snap(node.offset.dy + dy * step),
+      );
+    }
+    graph.notifyLayout();
+    _syncFromHeid();
   }
 
   void addNodeFromDef(NodeDef def, double worldX, double worldY) {
     if (state.embedConfig.readOnly) return;
     final type = state.catalog.find(def.id);
     final resolved = type?.asDef ?? def;
-    final node = CanvasNode(
-      iid: 'n${_uuid.v4().substring(0, 8)}',
-      def: resolved,
-      x: _snap(worldX - AnchorSpacing.nodeWidth / 2),
-      y: _snap(worldY - AnchorSpacing.nodeHeight / 2),
+    final iid = 'n${_uuid.v4().substring(0, 8)}';
+    graph.addCanvasNode(
+      typeId: resolved.id,
+      iid: iid,
+      offset: Offset(_snap(worldX), _snap(worldY)),
     );
-    _commit(state.doc.copyWith(nodes: [...state.doc.nodes, node]));
-    select(node.iid);
+    select(iid);
   }
 
   void addNodeFromTypeId(String typeId, double worldX, double worldY) {
@@ -512,6 +614,15 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   void updateSelectedConfig(String key, String value) {
     final sel = state.selectedNode;
     if (sel == null || state.embedConfig.readOnly) return;
+    final fl = graph.controller.nodes[sel.iid];
+    if (fl != null && fl.fields.containsKey(key)) {
+      graph.controller.setFieldData(
+        sel.iid,
+        key,
+        eventType: FlFieldEventType.submit,
+        data: value,
+      );
+    }
     final config = Map<String, String>.from(sel.config)..[key] = value;
     final nodes = state.doc.nodes
         .map((n) => n.iid == sel.iid ? n.copyWith(config: config) : n)
@@ -525,12 +636,16 @@ class WorkflowController extends Notifier<WorkflowUiState> {
       if (state.selectedId != null) state.selectedId!,
     };
     if (ids.isEmpty || state.embedConfig.readOnly) return;
-    final nodes = state.doc.nodes.where((n) => !ids.contains(n.iid)).toList();
-    final wires = state.doc.wires
-        .where((w) => !ids.contains(w.from) && !ids.contains(w.to))
-        .toList();
-    state = state.copyWith(clearSelected: true);
-    _commit(state.doc.copyWith(nodes: nodes, wires: wires));
+    unawaited(() async {
+      await graph.mutate(() async {
+        for (final id in ids) {
+          await graph.controller.removeNodeById(id, isHandled: true);
+        }
+      });
+      select(null, fromHeid: true);
+      graph.setSelection(const {});
+      _syncFromHeid();
+    }());
   }
 
   void deleteNode(String id) {
@@ -550,22 +665,24 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   void pasteClipboard() {
     if (state.clipboard.isEmpty || state.embedConfig.readOnly) return;
     final offset = state.gridSize * 2;
-    final mapped = <String, String>{};
-    final pasted = <CanvasNode>[];
-    for (final n in state.clipboard) {
-      final nid = 'n${_uuid.v4().substring(0, 8)}';
-      mapped[n.iid] = nid;
-      pasted.add(
-        n.copyWith(
-          iid: nid,
-          x: _snap(n.x + offset),
-          y: _snap(n.y + offset),
-          status: RunStatus.idle,
-        ),
-      );
-    }
-    _commit(state.doc.copyWith(nodes: [...state.doc.nodes, ...pasted]));
-    selectMany(pasted.map((n) => n.iid).toSet());
+    final pastedIds = <String>{};
+    unawaited(() async {
+      await graph.mutate(() async {
+        for (final n in state.clipboard) {
+          final nid = 'n${_uuid.v4().substring(0, 8)}';
+          pastedIds.add(nid);
+          graph.addCanvasNode(
+            typeId: n.def.id,
+            iid: nid,
+            offset: Offset(_snap(n.x + offset), _snap(n.y + offset)),
+            config: n.config,
+          );
+        }
+      });
+      graph.setSelection(pastedIds);
+      selectMany(pastedIds, fromHeid: true);
+      _syncFromHeid();
+    }());
   }
 
   void startDrawingWire(String fromId, double fx, double fy, {String fromPort = 'out'}) {
@@ -594,36 +711,15 @@ class WorkflowController extends Notifier<WorkflowUiState> {
       state = state.copyWith(clearDrawingWire: true);
       return;
     }
-    if (toId != null &&
-        toId != dw.fromId &&
-        !state.doc.wires.any(
-          (w) =>
-              w.from == dw.fromId &&
-              w.to == toId &&
-              w.fromPort == dw.fromPort &&
-              w.toPort == toPort,
-        )) {
-      final wire = Wire(
-        id: 'w${_uuid.v4().substring(0, 8)}',
-        from: dw.fromId,
-        to: toId,
-        fromPort: dw.fromPort,
-        toPort: toPort,
-      );
-      state = state.copyWith(clearDrawingWire: true);
-      _commit(state.doc.copyWith(wires: [...state.doc.wires, wire]));
-    } else {
-      state = state.copyWith(clearDrawingWire: true);
+    if (toId != null && toId != dw.fromId) {
+      graph.controller.addLink(dw.fromId, dw.fromPort, toId, toPort);
     }
+    state = state.copyWith(clearDrawingWire: true);
   }
 
   void deleteWire(String id) {
     if (state.embedConfig.readOnly) return;
-    _commit(
-      state.doc.copyWith(
-        wires: state.doc.wires.where((w) => w.id != id).toList(),
-      ),
-    );
+    graph.controller.removeLinkById(id);
   }
 
   void setNodeStatus(String iid, RunStatus status) {
@@ -652,20 +748,33 @@ class WorkflowController extends Notifier<WorkflowUiState> {
       sideTab: preview ? SidePanelTab.preview : state.sideTab,
     );
 
-    final report = await _engine.run(
-      nodes: state.doc.nodes,
-      wires: state.doc.wires,
+    graph.session.reset(
       input: sample,
       catalog: state.catalog,
-      useRandomFailures: !preview,
+      codePreview: hooks.onRequestCodePreview,
+      shouldCancel: () => _cancelRun,
       onStatus: setNodeStatus,
       onEvent: (e) {
         events.add(e);
         hooks.onPreviewEvent?.call(e);
         state = state.copyWith(previewEvents: List.of(events));
       },
-      codePreview: hooks.onRequestCodePreview,
-      shouldCancel: () => _cancelRun,
+      useRandomFailures: !preview,
+    );
+
+    for (final n in state.doc.nodes) {
+      setNodeStatus(n.iid, RunStatus.idle);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+
+    graph.controller.runner.buildGraph();
+    await graph.controller.runner.executeGraph();
+
+    final report = RunReport(
+      order: List.of(graph.session.order),
+      results: List.of(graph.session.results),
+      input: sample,
+      finishedAt: DateTime.now().toUtc(),
     );
 
     PreviewRecording? recording;
@@ -692,20 +801,24 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   Future<RunReport?> startPreview({bool record = true}) =>
       runWorkflow(preview: true, record: record);
 
-  void stopPreview() => _cancelRun = true;
+  void stopPreview() {
+    _cancelRun = true;
+    graph.controller.runner.abort();
+  }
 
-  void replaceWorkflow(WorkflowDoc doc) {
+  Future<void> replaceWorkflow(WorkflowDoc doc) async {
     _undo.clear();
     _redo.clear();
     state = state.copyWith(clearSelected: true, canUndo: false, canRedo: false);
-    _commit(doc, recordUndo: false);
+    await graph.loadDoc(doc, state.catalog);
+    _commit(graph.exportDoc(doc, state.catalog), recordUndo: false);
   }
 
   String exportJson() => _repo.encodeWorkflow(state.doc);
 
   void importJson(String raw) {
     final doc = _repo.decodeWorkflow(raw, state.catalog);
-    replaceWorkflow(doc);
+    unawaited(replaceWorkflow(doc));
   }
 
   void setEmbedConfig(EmbedConfig config) {
@@ -730,20 +843,23 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   void alignSelected({required bool horizontal}) {
     final ids = state.selectedIds;
     if (ids.length < 2) return;
-    final nodes = state.doc.nodes.where((n) => ids.contains(n.iid)).toList();
+    final nodes = [
+      for (final id in ids) graph.controller.nodes[id],
+    ].whereType<FlNodeDataModel>().toList();
+    if (nodes.length < 2) return;
     if (horizontal) {
-      final y = nodes.map((n) => n.y).reduce(math.min);
-      final next = state.doc.nodes
-          .map((n) => ids.contains(n.iid) ? n.copyWith(y: _snap(y)) : n)
-          .toList();
-      _commit(state.doc.copyWith(nodes: next));
+      final y = nodes.map((n) => n.offset.dy).reduce(math.min);
+      for (final n in nodes) {
+        n.offset = Offset(n.offset.dx, _snap(y));
+      }
     } else {
-      final x = nodes.map((n) => n.x).reduce(math.min);
-      final next = state.doc.nodes
-          .map((n) => ids.contains(n.iid) ? n.copyWith(x: _snap(x)) : n)
-          .toList();
-      _commit(state.doc.copyWith(nodes: next));
+      final x = nodes.map((n) => n.offset.dx).reduce(math.min);
+      for (final n in nodes) {
+        n.offset = Offset(_snap(x), n.offset.dy);
+      }
     }
+    graph.notifyLayout();
+    _syncFromHeid();
   }
 }
 

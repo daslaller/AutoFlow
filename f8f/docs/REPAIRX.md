@@ -23,6 +23,14 @@ dependency_overrides:
       path: packages/fl_nodes_core
 ```
 
+And in the host app `pubspec.yaml`:
+
+```yaml
+flutter:
+  shaders:
+    - packages/fl_nodes_core/shaders/grid.frag
+```
+
 (`fl_nodes_core`'s `dependency_overrides` entry is needed because
 `fl_nodes_visual_scripting` resolves it via HeidNodes' own pub workspace,
 which only works for consumers *inside* that workspace — see this

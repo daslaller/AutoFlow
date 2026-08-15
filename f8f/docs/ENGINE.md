@@ -1,14 +1,16 @@
-# Engine: Preview runs on HeidNodes
+# Engine: HeidNodes for canvas and Preview
 
-Preview is backed by
-[`daslaller/HeidNodes`](https://github.com/daslaller/HeidNodes)'
-`fl_nodes_core` (via `fl_nodes_visual_scripting`). The canvas you edit is
-still AutoFlow's own Flutter widgets — HeidNodes is the **executor**, not
-the editor.
+The editor canvas **and** Preview execution are
+[`daslaller/HeidNodes`](https://github.com/daslaller/HeidNodes)
+`fl_nodes_core` (via `fl_nodes_visual_scripting`). AutoFlow supplies the
+product chrome (palette, inspector, records, host API) around
+`FlNodesWidget`. There is one live `FlNodesController`; Preview runs that
+graph instead of translating it into a second homemade canvas.
 
 The practical effect: an If/Else or Switch node's untaken branch does not
-run. Named output ports (`true`/`false`, `case1`/`default`, …) are wired in
-the editor and honored at Preview time.
+run. Named output ports (`true`/`false`, `case1`/`default`, …) are HeidNodes
+control ports — independently wirable in the editor and honored at Preview
+time.
 
 ## Why this exists
 
@@ -19,24 +21,31 @@ named branches (typed ports, control-flow-aware walk). Proof:
 `packages/fl_nodes_core/test/runner_branching_test.dart` in HeidNodes, and
 this package's `test/simulation_engine_branching_test.dart`.
 
-The editor canvas was a separate gap: output hit-testing used a single
-anchor, so you could not drag `true` to one node and `false` to another.
-That is fixed — `PortGeometry` places each catalog port, the card draws
-them, and `Wire.fromPort` is set from the port you dragged.
+The editor used to be a second, homemade canvas (`WorkflowCanvas` +
+`PortGeometry`). That duplicated hit-testing and wiring that HeidNodes
+already implements. The canvas now *is* `FlNodesWidget`; AutoFlow chrome
+(palette, inspector, records) sits around it. Palette drag-ghosts are not
+graph nodes.
+
+`WorkflowDoc` v2 remains the host save format. AutoFlow loads it into the
+HeidNodes controller (preserving instance ids) and exports it back on edit.
 
 ## What `SimulationEngine` does
 
 Public API is unchanged: `run({nodes, wires, input, onStatus, onEvent,
 codePreview, catalog, shouldCancel, useRandomFailures})` still returns
-`RunReport` / `NodeResult` / `PreviewEvent`.
+`RunReport` / `NodeResult` / `PreviewEvent`. Headless callers get a
+throwaway HeidNodes graph; the in-editor Preview button runs the live
+controller instead.
 
 Internally, `run()`:
 
-1. Builds one `fl_nodes_visual_scripting` prototype per `CanvasNode`.
-2. Adds nodes and wires to an `AutomationEngine`, using catalog `PortDef.id`
-   strings as port names.
-3. Runs it. If/Else and Switch pick a named control port; only that
-   subgraph walks.
+1. Registers one HeidNodes prototype per catalog type (trigger / multi-out
+   condition / action).
+2. Loads `WorkflowDoc` nodes and wires onto a `FlNodesController`, keeping
+   AutoFlow `iid`s as HeidNodes node ids.
+3. Builds and executes the graph. If/Else and Switch pick a named control
+   port; only that subgraph walks.
 4. Status/events still use the same timing (120ms idle, 280ms running,
    80ms settle) so Preview *feels* the same, only the untaken branch stays
    `idle`.
@@ -56,6 +65,7 @@ mounting `AutoFlowBuilder`. Named default-look alternatives
 (`AnchorThemePresets`: `anchor`, `midnight`, `workshop`, `harbor`,
 `studio`) are also `AnchorColorsData` instances. Numbered shades
 (`slate500`, `blue50`, …) stay fixed — see `lib/theme/anchor_colors.dart`.
+The HeidNodes canvas reads those tokens for grid, node chrome, and ports.
 
 ## Follow-up
 
