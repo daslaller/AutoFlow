@@ -38,4 +38,5 @@ to embed it, and `f8f/docs/HOST_API.md` for the full API reference.
 Visual language is Anchor design-system tokens, now host-overridable — see
 `f8f/docs/ENGINE.md`'s "Host theming" section. RepairX embeds this package
 skinned to its own Rail design tokens rather than the shipped Anchor
-default.
+default. Named alternatives for that shipped default (`midnight`,
+`workshop`, `harbor`, `studio`) live in `AnchorThemePresets`.

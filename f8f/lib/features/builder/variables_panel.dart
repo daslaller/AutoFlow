@@ -19,7 +19,7 @@ class VariablesPanel extends ConsumerWidget {
     return Container(
       width: AnchorSpacing.propertiesWidth,
       decoration: BoxDecoration(
-        color: const Color(0xF7FFFFFF),
+        color: AnchorColors.panelFill,
         border: Border(left: BorderSide(color: AnchorColors.border)),
         boxShadow: AnchorShadows.md,
       ),

@@ -42,4 +42,4 @@ See [docs/HOST_API.md](docs/HOST_API.md) and [docs/REPAIRX.md](docs/REPAIRX.md).
 
 ## Design
 
-Visual language from `design/Anchor Design System/` (tokens only). Product behavior from `Embeddable automation tool/`.
+Visual language from `design/Anchor Design System/` (tokens only). Product behavior from `Embeddable automation tool/`. Named default-look alternatives live in `AnchorThemePresets` (`anchor`, `midnight`, `workshop`, `harbor`, `studio`) — demo: `flutter run -d chrome --web-port 8080` then `?theme=midnight`.

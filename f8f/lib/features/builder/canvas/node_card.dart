@@ -53,7 +53,7 @@ class WorkflowNodeCard extends StatelessWidget {
         width: AnchorSpacing.nodeWidth,
         height: AnchorSpacing.nodeHeight,
         decoration: BoxDecoration(
-          color: AnchorColors.white,
+          color: AnchorColors.card,
           borderRadius: BorderRadius.circular(AnchorSpacing.radiusLg),
           boxShadow: lift ? AnchorShadows.lg : AnchorShadows.md,
           border: Border.all(
@@ -64,8 +64,10 @@ class WorkflowNodeCard extends StatelessWidget {
                     : hasError
                         ? AnchorColors.destructive.withValues(alpha: 0.7)
                         : hovered
-                            ? AnchorColors.slate300
-                            : AnchorColors.slate200.withValues(alpha: 0.0),
+                            ? (AnchorColors.surfaceIsLight
+                                ? AnchorColors.slate300
+                                : AnchorColors.border)
+                            : AnchorColors.border.withValues(alpha: 0.0),
             width: emphasize || hasError ? 2 : (hovered ? 1.5 : 1),
           ),
         ),
@@ -206,7 +208,7 @@ class _Port extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: filled ? color : AnchorColors.white,
+              color: filled ? color : AnchorColors.card,
               shape: BoxShape.circle,
               border: Border.all(
                 color: color,
@@ -247,7 +249,7 @@ class PaletteGhost extends StatelessWidget {
           height: AnchorSpacing.nodeHeight,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: AnchorColors.white,
+            color: AnchorColors.card,
             borderRadius: BorderRadius.circular(AnchorSpacing.radiusLg),
             border: Border.all(color: c.withValues(alpha: 0.5)),
           ),

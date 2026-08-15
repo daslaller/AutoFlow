@@ -89,10 +89,13 @@ read from a swappable `AnchorColors.active` (`AnchorColorsData`), the same
 `AnchorColors.active = AnchorColorsData(...)` (e.g. built from its own
 design tokens) before mounting `AutoFlowBuilder`, and every existing
 `AnchorColors.primary`-style call site in this package keeps working
-unchanged. The raw numbered palette (`slate500`, `blue50`, ...), used for
-minor decorative accents in a few widgets, stays fixed — see
-`lib/theme/anchor_colors.dart`'s doc comments for why overriding those
-individually isn't the goal.
+unchanged. Named default-look alternatives (`AnchorThemePresets`:
+`anchor`, `midnight`, `workshop`, `harbor`, `studio`) are also just
+`AnchorColorsData` instances — `AnchorThemePresets.apply('midnight')` or
+the demo's `?theme=midnight`. The raw numbered palette (`slate500`,
+`blue50`, ...), used for minor decorative accents in a few widgets, stays
+fixed — see `lib/theme/anchor_colors.dart`'s doc comments for why
+overriding those individually isn't the goal.
 
 ## What's still worth doing (not done here)
 

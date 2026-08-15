@@ -123,7 +123,7 @@ class AnchorButton extends StatelessWidget {
         ),
       AnchorButtonVariant.ghost => (
           Colors.transparent,
-          AnchorColors.slate600,
+          AnchorColors.chromeFg,
           null,
         ),
       AnchorButtonVariant.destructive => (
@@ -145,7 +145,7 @@ class AnchorButton extends StatelessWidget {
         onTap: enabled ? onPressed : null,
         borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
         hoverColor: variant == AnchorButtonVariant.ghost
-            ? AnchorColors.slate100
+            ? AnchorColors.muted
             : null,
         child: Container(
           padding: _padding,
@@ -188,7 +188,7 @@ class AnchorIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final button = Material(
-      color: AnchorColors.white,
+      color: AnchorColors.card,
       borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
       child: InkWell(
         onTap: onPressed,
@@ -202,7 +202,7 @@ class AnchorIconButton extends StatelessWidget {
             border: Border.all(color: AnchorColors.border),
           ),
           child: IconTheme(
-            data: const IconThemeData(size: 16, color: AnchorColors.slate600),
+            data: IconThemeData(size: 16, color: AnchorColors.chromeFg),
             child: icon,
           ),
         ),

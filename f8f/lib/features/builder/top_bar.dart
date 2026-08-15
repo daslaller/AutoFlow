@@ -28,7 +28,7 @@ class BuilderTopBar extends ConsumerWidget {
       height: AnchorSpacing.topBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xF2FFFFFF),
+        color: AnchorColors.topBarFill,
         border: Border(bottom: BorderSide(color: AnchorColors.border)),
         boxShadow: AnchorShadows.sm,
       ),
@@ -78,9 +78,9 @@ class BuilderTopBar extends ConsumerWidget {
                     initialValue: s.doc.name,
                     key: ValueKey(s.doc.name),
                     onChanged: ctrl.setName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AnchorColors.slate600,
+                      color: AnchorColors.chromeFg,
                     ),
                     decoration: const InputDecoration(
                       isDense: true,
@@ -102,8 +102,8 @@ class BuilderTopBar extends ConsumerWidget {
                   icon: Icon(
                     Icons.undo_rounded,
                     color: s.canUndo
-                        ? AnchorColors.slate600
-                        : AnchorColors.slate300,
+                        ? AnchorColors.chromeFg
+                        : AnchorColors.chromeDisabled,
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -113,8 +113,8 @@ class BuilderTopBar extends ConsumerWidget {
                   icon: Icon(
                     Icons.redo_rounded,
                     color: s.canRedo
-                        ? AnchorColors.slate600
-                        : AnchorColors.slate300,
+                        ? AnchorColors.chromeFg
+                        : AnchorColors.chromeDisabled,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -125,7 +125,7 @@ class BuilderTopBar extends ConsumerWidget {
                     Icons.grid_on_rounded,
                     color: s.snapToGrid
                         ? AnchorColors.primary
-                        : AnchorColors.slate400,
+                        : AnchorColors.chromeMuted,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -175,7 +175,7 @@ class BuilderTopBar extends ConsumerWidget {
                     '${(s.zoom * 100).round()}%',
                     textAlign: TextAlign.center,
                     style: AnchorTypography.monoSmall.copyWith(
-                      color: AnchorColors.slate600,
+                      color: AnchorColors.chromeFg,
                     ),
                   ),
                 ),

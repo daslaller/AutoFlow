@@ -70,10 +70,10 @@ class NodePalette extends ConsumerWidget {
                 if (onClose != null)
                   IconButton(
                     onPressed: onClose,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
                       size: 16,
-                      color: AnchorColors.slate400,
+                      color: AnchorColors.sidebarFgMuted,
                     ),
                   ),
               ],
@@ -83,14 +83,14 @@ class NodePalette extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
               onChanged: ctrl.setSearch,
-              style: const TextStyle(color: AnchorColors.slate200, fontSize: 12),
+              style: TextStyle(color: AnchorColors.sidebarFg, fontSize: 12),
               decoration: InputDecoration(
                 hintText: 'Search…',
                 hintStyle:
-                    const TextStyle(color: AnchorColors.slate500, fontSize: 12),
+                    TextStyle(color: AnchorColors.sidebarFgMuted, fontSize: 12),
                 isDense: true,
                 filled: true,
-                fillColor: AnchorColors.slate800,
+                fillColor: AnchorColors.sidebarInputBg,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(
@@ -103,7 +103,7 @@ class NodePalette extends ConsumerWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AnchorSpacing.radiusMd),
-                  borderSide: const BorderSide(color: AnchorColors.blue500),
+                  borderSide: BorderSide(color: AnchorColors.ring),
                 ),
               ),
             ),
@@ -111,11 +111,11 @@ class NodePalette extends ConsumerWidget {
           const SizedBox(height: 8),
           Expanded(
             child: types.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No items match',
                       style: TextStyle(
-                        color: AnchorColors.slate500,
+                        color: AnchorColors.sidebarFgMuted,
                         fontSize: 12,
                       ),
                     ),
@@ -134,7 +134,7 @@ class NodePalette extends ConsumerWidget {
             child: Text(
               'Drag to canvas\nG toggles snap\nClick wire to delete',
               style: AnchorTypography.monoSmall.copyWith(
-                color: AnchorColors.slate500,
+                color: AnchorColors.sidebarFgMuted,
                 height: 1.55,
               ),
             ),
@@ -188,17 +188,17 @@ class _PaletteItem extends StatelessWidget {
               children: [
                 Text(
                   def.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AnchorColors.slate200,
+                    color: AnchorColors.sidebarFg,
                   ),
                 ),
                 Text(
                   def.sublabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: AnchorColors.slate500,
+                    color: AnchorColors.sidebarFgMuted,
                   ),
                 ),
               ],
