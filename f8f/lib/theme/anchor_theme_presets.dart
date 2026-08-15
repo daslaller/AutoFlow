@@ -27,7 +27,7 @@ abstract final class AnchorThemePresets {
     AnchorThemePreset(
       id: anchorId,
       label: 'Anchor',
-      blurb: 'Shipped default — light slate canvas, blue→purple brand, dark node rail.',
+      blurb: 'Shipped default — light slate canvas, blue→purple brand, light node rail.',
       colors: _anchor,
     ),
     AnchorThemePreset(
@@ -99,8 +99,8 @@ const _anchor = AnchorColorsData(
   destructiveForeground: Color(0xFFFFFFFF),
   success: Color(0xFF16A34A),
   warning: Color(0xFFA16207),
-  sidebarBg: Color(0xFF0F172A),
-  sidebarBorder: Color(0xFF334155),
+  sidebarBg: Color(0xFFFFFFFF),
+  sidebarBorder: Color(0xFFE2E8F0),
   sidebarFgMuted: Color(0xFF94A3B8),
   kindTrigger: Color(0xFF059669),
   kindAction: Color(0xFF2563EB),

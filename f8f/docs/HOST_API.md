@@ -46,7 +46,7 @@ AnchorThemePresets.apply('midnight'); // or workshop / harbor / studio
 
 | Id | Look |
 | --- | --- |
-| `anchor` | Shipped default — light slate canvas, blue→purple brand, dark node rail |
+| `anchor` | Shipped default — light slate canvas, blue→purple brand, light node rail |
 | `midnight` | Dark canvas editor — sky primary, violet accent |
 | `workshop` | Warm paper and copper — shop-floor / RepairX-shaped |
 | `harbor` | Teal / navy nautical — calmer than blue-purple |
