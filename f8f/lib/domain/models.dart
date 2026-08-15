@@ -662,4 +662,4 @@ class EmbedConfig {
 }
 
 /// Right-side inspector mode.
-enum SidePanelTab { properties, variables, preview }
+enum SidePanelTab { properties, records, variables, preview }

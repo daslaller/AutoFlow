@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:autoflow/design_system/sheet.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/features/builder/canvas/workflow_canvas.dart';
+import 'package:autoflow/features/builder/inspector_rail.dart';
 import 'package:autoflow/features/builder/node_palette.dart';
-import 'package:autoflow/features/builder/preview_panel.dart';
 import 'package:autoflow/features/builder/properties_panel.dart';
 import 'package:autoflow/features/builder/top_bar.dart';
-import 'package:autoflow/features/builder/variables_panel.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 import 'package:autoflow/theme/anchor_colors.dart';
 import 'package:autoflow/theme/anchor_spacing.dart';
@@ -52,18 +51,8 @@ class _BuilderPageState extends ConsumerState<BuilderPage> {
       if (id == null) _lastSheetNodeId = null;
     });
 
-    Widget? side;
-    if (!isMobile) {
-      side = switch (s.sideTab) {
-        SidePanelTab.variables => const VariablesPanel(),
-        SidePanelTab.preview => const PreviewPanel(),
-        SidePanelTab.properties =>
-          s.selectedNode != null ? const PropertiesPanel() : null,
-      };
-    }
-
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: AnchorColors.gradientPage),
+      decoration: BoxDecoration(color: AnchorColors.slate50),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Column(
@@ -86,7 +75,7 @@ class _BuilderPageState extends ConsumerState<BuilderPage> {
                 children: [
                   if (!isMobile && !minimal) const NodePalette(),
                   const Expanded(child: WorkflowCanvas()),
-                  ?side,
+                  if (!isMobile) const InspectorRail(),
                 ],
               ),
             ),

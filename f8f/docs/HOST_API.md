@@ -68,6 +68,7 @@ AutoFlowBuilder(
 | `setVariables(VariableSchema)` | Bind variable dictionary |
 | `setWorkflow` / `getWorkflow` | Load/save graph |
 | `setSampleRecord` | Record used by Preview |
+| `setPreviewRecords` | Shop rows (tickets, POs, devices, parts) the Record picker lists |
 | `startPreview` / `stopPreview` | In-editor simulation |
 | `submitInput(payload)` | Set record + optionally preview |
 | `configure(embedChrome, readOnly)` | Chrome / lock |
@@ -168,6 +169,11 @@ AutoFlow does **not** need to be on screen for production runs.
 | `message.received` | Inbound SMS/chat/email |
 | `canned_message.selected` | Canned reply chosen / flow-linked |
 | `ticket.status_changed` | Status from→to |
+| `ticket.created` | New repair ticket |
+| `purchase_order.received` | Supplier delivery booked in |
+| `device.received` | Customer device at intake |
+| `spare_part.received` | Stock unit arrived |
+| `inventory.low_stock` | Part below reorder point |
 | `webhook` / `schedule` / `manual` | Generic |
 
 ### Canned message ↔ flow
@@ -190,6 +196,7 @@ AutoFlow does **not** need to be on screen for production runs.
 window.AutoFlow.setCatalog(catalog)
 window.AutoFlow.setVariables(schema)
 window.AutoFlow.setSampleRecord(record)
+window.AutoFlow.setPreviewRecords({ records })
 window.AutoFlow.setWorkflow(doc)
 window.AutoFlow.startPreview()
 window.AutoFlow.submitInput({ payload, run: true })
