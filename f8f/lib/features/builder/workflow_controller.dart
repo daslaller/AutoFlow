@@ -7,6 +7,7 @@ import 'package:autoflow/data/workflow_repository.dart';
 import 'package:autoflow/domain/catalog.dart';
 import 'package:autoflow/domain/demo_workflow.dart';
 import 'package:autoflow/domain/models.dart';
+import 'package:autoflow/domain/records.dart';
 import 'package:autoflow/domain/variables.dart';
 import 'package:autoflow/features/run/simulation_engine.dart';
 import 'package:autoflow/theme/anchor_spacing.dart';
@@ -26,6 +27,8 @@ class WorkflowUiState {
     this.drawingWire,
     this.search = '',
     this.sampleRecord = const {},
+    this.previewRecords = const [],
+    this.selectedRecordId,
     this.lastReport,
     this.previewEvents = const [],
     this.lastRecording,
@@ -53,6 +56,8 @@ class WorkflowUiState {
   final DrawingWire? drawingWire;
   final String search;
   final Map<String, dynamic> sampleRecord;
+  final List<DataRecord> previewRecords;
+  final String? selectedRecordId;
   final RunReport? lastReport;
   final List<PreviewEvent> previewEvents;
   final PreviewRecording? lastRecording;
@@ -75,6 +80,25 @@ class WorkflowUiState {
     return null;
   }
 
+  DataRecord? get selectedRecord {
+    final id = selectedRecordId;
+    if (id == null) return null;
+    for (final r in previewRecords) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  /// Variables the inspector should offer. A selected shop record wins so
+  /// its fields become the `{{path}}` dictionary; otherwise the host schema.
+  VariableSchema get effectiveVariables {
+    if (sampleRecord.isNotEmpty) {
+      final fromRecord = schemaFromRecordData(sampleRecord);
+      if (fromRecord.groups.isNotEmpty) return fromRecord;
+    }
+    return variables;
+  }
+
   WorkflowUiState copyWith({
     WorkflowDoc? doc,
     NodeCatalog? catalog,
@@ -91,6 +115,9 @@ class WorkflowUiState {
     bool clearDrawingWire = false,
     String? search,
     Map<String, dynamic>? sampleRecord,
+    List<DataRecord>? previewRecords,
+    String? selectedRecordId,
+    bool clearSelectedRecord = false,
     RunReport? lastReport,
     List<PreviewEvent>? previewEvents,
     PreviewRecording? lastRecording,
@@ -119,6 +146,10 @@ class WorkflowUiState {
           clearDrawingWire ? null : (drawingWire ?? this.drawingWire),
       search: search ?? this.search,
       sampleRecord: sampleRecord ?? this.sampleRecord,
+      previewRecords: previewRecords ?? this.previewRecords,
+      selectedRecordId: clearSelectedRecord
+          ? null
+          : (selectedRecordId ?? this.selectedRecordId),
       lastReport: lastReport ?? this.lastReport,
       previewEvents: previewEvents ?? this.previewEvents,
       lastRecording: lastRecording ?? this.lastRecording,
@@ -173,11 +204,15 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   @override
   WorkflowUiState build() {
     Future.microtask(_bootstrap);
+    final records = buildDefaultPreviewRecords();
+    final first = records.first;
     return WorkflowUiState(
       doc: createDemoWorkflow(),
       catalog: buildDefaultCatalog(),
       variables: buildDefaultVariableSchema(),
-      sampleRecord: buildDefaultSampleRecord(),
+      sampleRecord: first.data,
+      previewRecords: records,
+      selectedRecordId: first.id,
     );
   }
 
@@ -322,8 +357,63 @@ class WorkflowController extends Notifier<WorkflowUiState> {
   void setVariables(VariableSchema schema) =>
       state = state.copyWith(variables: schema);
 
-  void setSampleRecord(Map<String, dynamic> record) =>
-      state = state.copyWith(sampleRecord: record);
+  void setSampleRecord(Map<String, dynamic> record) {
+    String? matchId;
+    for (final r in state.previewRecords) {
+      if (_mapsEqual(r.data, record) || r.id == record['id']) {
+        matchId = r.id;
+        break;
+      }
+    }
+    state = state.copyWith(
+      sampleRecord: record,
+      selectedRecordId: matchId,
+      clearSelectedRecord: matchId == null,
+    );
+  }
+
+  void setPreviewRecords(List<DataRecord> records) {
+    final keep = state.selectedRecordId;
+    final still = records.any((r) => r.id == keep);
+    final next = still
+        ? records.firstWhere((r) => r.id == keep)
+        : (records.isEmpty ? null : records.first);
+    state = state.copyWith(
+      previewRecords: records,
+      selectedRecordId: next?.id,
+      clearSelectedRecord: next == null,
+      sampleRecord: next?.data ?? state.sampleRecord,
+    );
+  }
+
+  void selectRecord(String? id) {
+    if (id == null) {
+      state = state.copyWith(clearSelectedRecord: true);
+      return;
+    }
+    DataRecord? rec;
+    for (final r in state.previewRecords) {
+      if (r.id == id) {
+        rec = r;
+        break;
+      }
+    }
+    if (rec == null) return;
+    state = state.copyWith(
+      selectedRecordId: rec.id,
+      sampleRecord: rec.data,
+      sideTab: SidePanelTab.records,
+    );
+  }
+
+  bool _mapsEqual(Map<String, dynamic> a, Map<String, dynamic> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final e in a.entries) {
+      if (b[e.key] != e.value) return false;
+    }
+    return true;
+  }
 
   void setPanZoom({double? panX, double? panY, double? zoom}) {
     state = state.copyWith(

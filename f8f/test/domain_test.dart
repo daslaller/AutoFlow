@@ -14,6 +14,11 @@ void main() {
     expect(cat.find('ticket.status_changed'), isNotNull);
     expect(cat.find('code'), isNotNull);
     expect(cat.find('canned_message.selected'), isNotNull);
+    expect(cat.find('purchase_order.received'), isNotNull);
+    expect(cat.find('device.received'), isNotNull);
+    expect(cat.find('spare_part.received'), isNotNull);
+    expect(cat.find('ticket.created'), isNotNull);
+    expect(cat.find('inventory.low_stock'), isNotNull);
   });
 
   test('palette derived from catalog', () {

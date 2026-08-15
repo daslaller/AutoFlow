@@ -20,8 +20,8 @@ abstract final class AnchorSpacing {
   static const double radius2xl = 20;
   static const double radiusFull = 9999;
 
-  static const double sidebarWidth = 240;
-  static const double propertiesWidth = 280;
+  static const double sidebarWidth = 268;
+  static const double propertiesWidth = 320;
   static const double topBarHeight = 56;
   static const double nodeWidth = 218;
   static const double nodeHeight = 78;

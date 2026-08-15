@@ -73,23 +73,28 @@ class BuilderTopBar extends ConsumerWidget {
               const SizedBox(width: 12),
               Flexible(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 220),
+                  constraints: const BoxConstraints(maxWidth: 260),
                   child: TextFormField(
                     initialValue: s.doc.name,
                     key: ValueKey(s.doc.name),
                     onChanged: ctrl.setName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AnchorColors.slate600,
+                      fontWeight: FontWeight.w600,
+                      color: AnchorColors.foreground,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
                       filled: false,
                       contentPadding: EdgeInsets.zero,
-                      hintText: 'Workflow name',
+                      hintText: 'Untitled workflow',
+                      hintStyle: TextStyle(
+                        color: AnchorColors.mutedForeground,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -127,18 +132,6 @@ class BuilderTopBar extends ConsumerWidget {
                         ? AnchorColors.primary
                         : AnchorColors.slate400,
                   ),
-                ),
-                const SizedBox(width: 4),
-                AnchorIconButton(
-                  tooltip: 'Variables',
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.variables),
-                  icon: const Icon(Icons.data_object_rounded),
-                ),
-                const SizedBox(width: 4),
-                AnchorIconButton(
-                  tooltip: 'Preview inspector',
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.preview),
-                  icon: const Icon(Icons.timeline_rounded),
                 ),
                 const SizedBox(width: 6),
               ],
@@ -188,11 +181,19 @@ class BuilderTopBar extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               AnchorButton(
-                label: 'Record',
-                variant: AnchorButtonVariant.outline,
+                label: s.selectedRecord?.title.split(' · ').first ?? 'Record',
+                variant: s.sideTab == SidePanelTab.records
+                    ? AnchorButtonVariant.secondary
+                    : AnchorButtonVariant.outline,
                 size: AnchorButtonSize.sm,
-                onPressed: () => ctrl.setSideTab(SidePanelTab.preview),
-                icon: const Icon(Icons.fiber_manual_record, size: 12),
+                onPressed: () => ctrl.setSideTab(SidePanelTab.records),
+                icon: Icon(
+                  Icons.table_rows_rounded,
+                  size: 13,
+                  color: s.selectedRecordId != null
+                      ? AnchorColors.primary
+                      : AnchorColors.slate500,
+                ),
               ),
               const SizedBox(width: 6),
               Semantics(

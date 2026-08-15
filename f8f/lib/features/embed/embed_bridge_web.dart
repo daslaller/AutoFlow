@@ -58,6 +58,10 @@ void registerEmbedBridge(ProviderContainer container) {
           Map<String, dynamic>.from((args['record'] as Map?) ?? args),
         );
         return true.toJS;
+      case 'setPreviewRecords':
+        final list = args['records'] as List? ?? args['previewRecords'] as List? ?? const [];
+        api.setPreviewRecords(list);
+        return true.toJS;
       case 'startPreview':
         final report = await api.startPreview();
         postToParent('runComplete', {'report': report});
@@ -107,6 +111,16 @@ void registerEmbedBridge(ProviderContainer container) {
 
   autoFlow['setSampleRecord'] = ((JSAny? doc) {
     api.setSampleRecord(asMap(doc));
+    return true;
+  }).toJS;
+
+  autoFlow['setPreviewRecords'] = ((JSAny? doc) {
+    final raw = doc?.dartify();
+    if (raw is List) {
+      api.setPreviewRecords(raw);
+    } else {
+      api.setPreviewRecords(asMap(doc)['records'] as List? ?? const []);
+    }
     return true;
   }).toJS;
 

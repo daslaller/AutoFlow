@@ -8,48 +8,68 @@ import 'package:autoflow/theme/anchor_spacing.dart';
 import 'package:autoflow/theme/anchor_typography.dart';
 
 class VariablesPanel extends ConsumerWidget {
-  const VariablesPanel({super.key});
+  const VariablesPanel({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(workflowProvider);
     final ctrl = ref.read(workflowProvider.notifier);
     final sample = s.sampleRecord;
+    final schema = s.effectiveVariables;
+    final rec = s.selectedRecord;
 
-    return Container(
-      width: AnchorSpacing.propertiesWidth,
-      decoration: BoxDecoration(
-        color: const Color(0xF7FFFFFF),
-        border: Border(left: BorderSide(color: AnchorColors.border)),
-        boxShadow: AnchorShadows.md,
-      ),
-      child: Column(
+    final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
-                  child: Text(
-                    'Variables',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Variables',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (!embedded)
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => ctrl.setSideTab(SidePanelTab.properties),
+                        icon: const Icon(Icons.close, size: 16),
+                      ),
+                  ],
+                ),
+                if (rec != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'From ${rec.title}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AnchorColors.mutedForeground,
+                    ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Close',
-                  onPressed: () => ctrl.setSideTab(SidePanelTab.properties),
-                  icon: const Icon(Icons.close, size: 16),
-                ),
+                ],
               ],
             ),
           ),
           const Divider(height: 1),
           Expanded(
-            child: ListView(
+            child: schema.groups.isEmpty
+                ? Center(
+                    child: Text(
+                      'Select a record to see its fields',
+                      style: TextStyle(color: AnchorColors.mutedForeground),
+                    ),
+                  )
+                : ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                for (final group in s.variables.groups) ...[
+                for (final group in schema.groups) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
                     child: Text(
@@ -99,7 +119,16 @@ class VariablesPanel extends ConsumerWidget {
             ),
           ),
         ],
+      );
+
+    if (embedded) return body;
+    return Container(
+      width: AnchorSpacing.propertiesWidth,
+      decoration: BoxDecoration(
+        color: AnchorColors.white,
+        border: Border(left: BorderSide(color: AnchorColors.border)),
       ),
+      child: body,
     );
   }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:autoflow/domain/models.dart';
+import 'package:autoflow/domain/records.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 
 /// Platform-agnostic embed surface used by the web JS bridge.
@@ -29,6 +30,15 @@ class EmbedApi {
 
   void setSampleRecord(Map<String, dynamic> json) {
     _ctrl.setSampleRecord(json);
+  }
+
+  void setPreviewRecords(List<dynamic> json) {
+    _ctrl.setPreviewRecords(
+      json
+          .whereType<Map>()
+          .map((r) => DataRecord.fromJson(Map<String, dynamic>.from(r)))
+          .toList(),
+    );
   }
 
   void configure({String? embedChrome, bool? readOnly}) {
