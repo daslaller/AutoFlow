@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:autoflow/domain/catalog.dart';
 import 'package:autoflow/domain/models.dart';
-import 'package:autoflow/features/builder/canvas/port_geometry.dart';
+import 'package:autoflow/features/builder/canvas/heid_graph.dart';
+import 'package:autoflow/features/builder/canvas/heid_prototypes.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 
 void main() {
@@ -13,13 +14,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('if-else true and false ports sit on different anchors', () {
-    final type = buildDefaultCatalog().find('if-else')!;
-    final node = CanvasNode(iid: 'n', def: type.asDef, x: 40, y: 80);
-    final t = PortGeometry.output(node, 'true', type);
-    final f = PortGeometry.output(node, 'false', type);
-    expect(t.dx, f.dx);
-    expect(t.dy, isNot(equals(f.dy)));
+  test('if-else true and false are distinct HeidNodes control outputs', () {
+    final catalog = buildDefaultCatalog();
+    final session = PreviewSession();
+    final graph = HeidGraph(
+      catalog: catalog,
+      session: session,
+      snapToGrid: false,
+    );
+    addTearDown(graph.dispose);
+    final proto = graph.controller.nodePrototypes['if-else']!;
+    final ids = proto.portPrototypes.map((p) => p.idName).toSet();
+    expect(ids, containsAll({'true', 'false', 'in'}));
   });
 
   test('dragging wires both if-else outputs independently', () async {
@@ -27,12 +33,12 @@ void main() {
     addTearDown(container.dispose);
     final ctrl = container.read(workflowProvider.notifier);
 
-    for (var i = 0; i < 20 && !container.read(workflowProvider).ready; i++) {
+    for (var i = 0; i < 40 && !container.read(workflowProvider).ready; i++) {
       await Future<void>.delayed(Duration.zero);
     }
 
     final cat = buildDefaultCatalog();
-    ctrl.replaceWorkflow(
+    await ctrl.replaceWorkflow(
       WorkflowDoc(
         name: 'branch',
         nodes: [
@@ -54,10 +60,9 @@ void main() {
       ),
     );
 
-    ctrl.startDrawingWire('branch', 10, 10, fromPort: 'true');
-    ctrl.finishDrawingWire('onTrue');
-    ctrl.startDrawingWire('branch', 10, 40, fromPort: 'false');
-    ctrl.finishDrawingWire('onFalse');
+    ctrl.graph.controller.addLink('branch', 'true', 'onTrue', 'in');
+    ctrl.graph.controller.addLink('branch', 'false', 'onFalse', 'in');
+    await Future<void>.delayed(Duration.zero);
 
     final wires = container.read(workflowProvider).doc.wires;
     expect(
@@ -67,6 +72,61 @@ void main() {
     expect(
       wires.where((w) => w.fromPort == 'false' && w.to == 'onFalse'),
       hasLength(1),
+    );
+  });
+
+  test('HeidGraph load/export keeps instance ids and wire ids', () async {
+    final catalog = buildDefaultCatalog();
+    final session = PreviewSession();
+    final graph = HeidGraph(
+      catalog: catalog,
+      session: session,
+      snapToGrid: false,
+    );
+    addTearDown(graph.dispose);
+
+    final doc = WorkflowDoc(
+      name: 'roundtrip',
+      nodes: [
+        CanvasNode(
+          iid: 'n_trigger',
+          def: catalog.find('message.received')!.asDef,
+          x: 40,
+          y: 80,
+        ),
+        CanvasNode(
+          iid: 'n_branch',
+          def: catalog.find('if-else')!.asDef,
+          x: 280,
+          y: 80,
+          config: const {'condition': '{{ok}} == true'},
+        ),
+      ],
+      wires: const [
+        Wire(
+          id: 'wire_keep',
+          from: 'n_trigger',
+          fromPort: 'out',
+          to: 'n_branch',
+          toPort: 'in',
+        ),
+      ],
+    );
+
+    await graph.loadDoc(doc, catalog);
+    final exported = graph.exportDoc(doc, catalog);
+
+    expect(exported.nodes.map((n) => n.iid).toSet(), {'n_trigger', 'n_branch'});
+    expect(exported.wires, hasLength(1));
+    expect(exported.wires.single.id, 'wire_keep');
+    expect(exported.wires.single.from, 'n_trigger');
+    expect(exported.wires.single.fromPort, 'out');
+    expect(exported.wires.single.to, 'n_branch');
+    expect(exported.wires.single.toPort, 'in');
+    expect(exported.nodes.firstWhere((n) => n.iid == 'n_trigger').x, 40);
+    expect(
+      exported.nodes.firstWhere((n) => n.iid == 'n_branch').config['condition'],
+      '{{ok}} == true',
     );
   });
 }

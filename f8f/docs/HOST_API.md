@@ -3,18 +3,23 @@
 AutoFlow is an **embeddable workflow designer**. RepairX (or any host) owns production execution; AutoFlow owns design, validation, and in-editor **Preview**.
 
 Preview execution is HeidNodes `fl_nodes_core` (see `ENGINE.md`): an If/Else
-or Switch node's untaken branch does not run. The canvas is AutoFlow's own
-widgets — named output ports are independently wirable.
+or Switch node's untaken branch does not run. The canvas is HeidNodes
+`FlNodesWidget` — named output ports are independently wirable.
 
 ## Engine (canvas)
 
-Custom Flutter canvas (no Flame / React Flow) — **rendering/interaction
-only**; see `ENGINE.md` for the execution engine underneath Preview:
+HeidNodes `fl_nodes_core` (`FlNodesWidget` / `FlNodesController`) — pan,
+zoom, hit-testing, wires, and named ports. AutoFlow chrome (palette,
+inspector, records) sits around it. Preview runs the same controller; see
+`ENGINE.md`. Host save format remains `WorkflowDoc` v2.
 
-- Viewport: matrix pan/zoom + pointer hit-testing
-- Wires: antialiased `CustomPainter` Beziers, one anchor per catalog port
-- Nodes: positioned widgets
-- State: Riverpod + `AutoFlowController`
+The host **app** (not this package alone) must register HeidNodes' grid shader:
+
+```yaml
+flutter:
+  shaders:
+    - packages/fl_nodes_core/shaders/grid.frag
+```
 
 ## Theming
 

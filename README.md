@@ -14,8 +14,8 @@ Flutter app. The Dart package name is `autoflow` (the folder is `f8f/`).
   `default`); each port is independently wirable.
 - **Preview** — pick a ticket, purchase order, device, or spare part. Its
   fields become `{{path}}` variables. Run Preview in the editor; only the
-  taken branch executes (HeidNodes `fl_nodes_core` under
-  `SimulationEngine`).
+  taken branch executes. The canvas and Preview share HeidNodes
+  (`fl_nodes_core` / `FlNodesWidget`).
 - **Hand off** — the host owns live execution. AutoFlow owns the editor,
   validation, and in-editor Preview. RepairX (or you) runs the saved graph
   when a real event fires.
@@ -59,7 +59,7 @@ the builder. Named default-look alternatives (`midnight`, `workshop`,
 f8f/                  Flutter package (autoflow)
   lib/api/            AutoFlowBuilder, AutoFlowController
   lib/domain/         catalog, records, WorkflowDoc
-  lib/features/builder/   canvas + inspector
+  lib/features/builder/   HeidNodes canvas + inspector
   lib/features/run/   SimulationEngine (HeidNodes-backed)
   docs/               HOST_API, ENGINE, REPAIRX
 ```

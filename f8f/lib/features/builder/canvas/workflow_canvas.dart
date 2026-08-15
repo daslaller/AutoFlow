@@ -1,734 +1,179 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_nodes_visual_scripting/fl_nodes_visual_scripting.dart';
 import 'package:autoflow/domain/models.dart';
-import 'package:autoflow/features/builder/canvas/node_card.dart';
-import 'package:autoflow/features/builder/canvas/port_geometry.dart';
-import 'package:autoflow/features/builder/canvas/wire_painter.dart';
+import 'package:autoflow/features/builder/canvas/autoflow_node.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
-import 'package:autoflow/theme/anchor_colors.dart';
-import 'package:autoflow/theme/anchor_spacing.dart';
-import 'package:autoflow/theme/anchor_typography.dart';
 
-enum _DragMode { none, pan, node, wire }
-
-class _PortHit {
-  const _PortHit(this.nodeId, this.side, this.portId);
-  final String nodeId;
-  final PortSide side;
-  final String portId;
-}
-
-class _SnapTarget {
-  const _SnapTarget(this.nodeId, this.portId);
-  final String nodeId;
-  final String portId;
-}
-
-class WorkflowCanvas extends ConsumerStatefulWidget {
+/// Editor canvas backed by HeidNodes (`FlNodesWidget`).
+class WorkflowCanvas extends ConsumerWidget {
   const WorkflowCanvas({super.key});
 
   @override
-  ConsumerState<WorkflowCanvas> createState() => _WorkflowCanvasState();
-}
-
-class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas>
-    with TickerProviderStateMixin {
-  final _focus = FocusNode();
-  late final AnimationController _dashCtrl;
-  Ticker? _autoPanTicker;
-  Duration _lastAutoPan = Duration.zero;
-
-  _DragMode _mode = _DragMode.none;
-  Offset _pointerScreen = Offset.zero;
-  Offset _startScreen = Offset.zero;
-  double _startPanX = 0;
-  double _startPanY = 0;
-  String? _dragNodeId;
-  Offset _grabOffset = Offset.zero;
-  WirePainter? _lastPainter;
-
-  String? _hoveredWireId;
-  String? _hoveredNodeId;
-  _PortHit? _hoveredPort;
-  _SnapTarget? _snapTarget;
-  Size _viewportSize = Size.zero;
-
-  static const _edgeMargin = 56.0;
-  static const _autoPanSpeed = 520.0; // px/sec at full edge strength
-
-  @override
-  void initState() {
-    super.initState();
-    _dashCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _autoPanTicker?.dispose();
-    _dashCtrl.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  Offset _screenToWorld(Offset screen, WorkflowUiState s) {
-    return Offset(
-      (screen.dx - s.panX) / s.zoom,
-      (screen.dy - s.panY) / s.zoom,
-    );
-  }
-
-  NodeTypeDef? _typeOf(CanvasNode n, WorkflowUiState s) =>
-      s.catalog.find(n.def.id);
-
-  bool _hitBody(CanvasNode n, Offset world, WorkflowUiState s) {
-    final size = PortGeometry.nodeSize(_typeOf(n, s));
-    return world.dx >= n.x &&
-        world.dx <= n.x + size.width &&
-        world.dy >= n.y &&
-        world.dy <= n.y + size.height;
-  }
-
-  _PortHit? _findPort(
-    Offset world,
-    WorkflowUiState s, {
-    bool inputsOnly = false,
-    bool outputsOnly = false,
-  }) {
-    for (final n in s.doc.nodes.reversed) {
-      final type = _typeOf(n, s);
-      if (!inputsOnly) {
-        for (final p in PortGeometry.outputsOf(type)) {
-          final pos = PortGeometry.output(n, p.id, type);
-          if ((pos - world).distance < AnchorSpacing.portRadius + 14) {
-            return _PortHit(n.iid, PortSide.output, p.id);
-          }
-        }
-      }
-      if (!outputsOnly) {
-        for (final p in PortGeometry.inputsOf(type)) {
-          final pos = PortGeometry.input(n, p.id, type);
-          if ((pos - world).distance < AnchorSpacing.portRadius + 16) {
-            return _PortHit(n.iid, PortSide.input, p.id);
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  void _clearHover() {
-    if (_hoveredWireId != null ||
-        _hoveredPort != null ||
-        _hoveredNodeId != null) {
-      setState(() {
-        _hoveredWireId = null;
-        _hoveredPort = null;
-        _hoveredNodeId = null;
-      });
-    }
-  }
-
-  void _updateHover(Offset screen, WorkflowUiState s) {
-    if (_mode != _DragMode.none) return;
-    final world = _screenToWorld(screen, s);
-    final port = _findPort(world, s);
-    String? nodeId;
-    if (port == null) {
-      for (final n in s.doc.nodes.reversed) {
-        if (_hitBody(n, world, s)) {
-          nodeId = n.iid;
-          break;
-        }
-      }
-    }
-    final wireId =
-        port == null && nodeId == null ? _lastPainter?.hitTestWire(world) : null;
-    if (port?.nodeId != _hoveredPort?.nodeId ||
-        port?.side != _hoveredPort?.side ||
-        port?.portId != _hoveredPort?.portId ||
-        wireId != _hoveredWireId ||
-        nodeId != _hoveredNodeId) {
-      setState(() {
-        _hoveredPort = port;
-        _hoveredWireId = wireId;
-        _hoveredNodeId = nodeId;
-      });
-    }
-  }
-
-  void _startAutoPan() {
-    _autoPanTicker?.dispose();
-    _lastAutoPan = Duration.zero;
-    _autoPanTicker = createTicker(_onAutoPanTick)..start();
-  }
-
-  void _stopAutoPan() {
-    _autoPanTicker?.dispose();
-    _autoPanTicker = null;
-    _lastAutoPan = Duration.zero;
-  }
-
-  /// Strength 0..1 based on how deep the pointer is into the edge margin.
-  double _edgeStrength(double pos, double max, {required bool nearStart}) {
-    if (nearStart) {
-      if (pos >= _edgeMargin) return 0;
-      return (1 - pos / _edgeMargin).clamp(0.0, 1.0);
-    }
-    final dist = max - pos;
-    if (dist >= _edgeMargin) return 0;
-    return (1 - dist / _edgeMargin).clamp(0.0, 1.0);
-  }
-
-  void _onAutoPanTick(Duration elapsed) {
-    if (_mode != _DragMode.node && _mode != _DragMode.wire) {
-      _stopAutoPan();
-      return;
-    }
-    final dt = _lastAutoPan == Duration.zero
-        ? 0.0
-        : (elapsed - _lastAutoPan).inMicroseconds / 1e6;
-    _lastAutoPan = elapsed;
-    if (dt <= 0 || dt > 0.1) return;
-
-    final s = ref.read(workflowProvider);
-    final size = _viewportSize;
-    if (size == Size.zero) return;
-
-    final left = _edgeStrength(_pointerScreen.dx, size.width, nearStart: true);
-    final right = _edgeStrength(_pointerScreen.dx, size.width, nearStart: false);
-    final top = _edgeStrength(_pointerScreen.dy, size.height, nearStart: true);
-    final bottom =
-        _edgeStrength(_pointerScreen.dy, size.height, nearStart: false);
-
-    if (left == 0 && right == 0 && top == 0 && bottom == 0) return;
-
-    final dx = (right - left) * _autoPanSpeed * dt;
-    final dy = (bottom - top) * _autoPanSpeed * dt;
+  Widget build(BuildContext context, WidgetRef ref) {
     final ctrl = ref.read(workflowProvider.notifier);
-    ctrl.setPanZoom(panX: s.panX - dx, panY: s.panY - dy);
+    final controller = ctrl.graph.controller;
+    final session = ctrl.graph.session;
 
-    // Keep dragged node under the pointer after pan.
-    if (_mode == _DragMode.node && _dragNodeId != null) {
-      final next = ref.read(workflowProvider);
-      final world = _screenToWorld(_pointerScreen, next);
-      ctrl.moveNode(
-        _dragNodeId!,
-        world.dx - _grabOffset.dx,
-        world.dy - _grabOffset.dy,
-      );
-    } else if (_mode == _DragMode.wire) {
-      final next = ref.read(workflowProvider);
-      final world = _screenToWorld(_pointerScreen, next);
-      _updateWireDrag(world, next);
-    }
-  }
-
-  void _updateWireDrag(Offset world, WorkflowUiState s) {
-    final ctrl = ref.read(workflowProvider.notifier);
-    ctrl.updateDrawingWire(world.dx, world.dy);
-    _SnapTarget? snap;
-    for (final n in s.doc.nodes) {
-      if (s.drawingWire != null && n.iid == s.drawingWire!.fromId) continue;
-      final type = _typeOf(n, s);
-      for (final p in PortGeometry.inputsOf(type)) {
-        final pos = PortGeometry.input(n, p.id, type);
-        if ((pos - world).distance < AnchorSpacing.portRadius + 18) {
-          snap = _SnapTarget(n.iid, p.id);
-          break;
-        }
-      }
-      if (snap != null) break;
-    }
-    if (snap?.nodeId != _snapTarget?.nodeId ||
-        snap?.portId != _snapTarget?.portId) {
-      setState(() => _snapTarget = snap);
-    }
-  }
-
-  void _onPointerDown(PointerDownEvent e, WorkflowUiState s) {
-    if (e.buttons != kPrimaryButton) return;
-    _focus.requestFocus();
-    _pointerScreen = e.localPosition;
-    final ctrl = ref.read(workflowProvider.notifier);
-    final world = _screenToWorld(e.localPosition, s);
-    final nodes = [...s.doc.nodes].reversed;
-
-    final outHit = _findPort(world, s, outputsOnly: true);
-    if (outHit != null) {
-      final n = s.doc.nodes.firstWhere((x) => x.iid == outHit.nodeId);
-      final type = _typeOf(n, s);
-      final origin = PortGeometry.output(n, outHit.portId, type);
-      _mode = _DragMode.wire;
-      _clearHover();
-      setState(() {
-        _snapTarget = null;
-        _hoveredPort = outHit;
-      });
-      ctrl.startDrawingWire(
-        n.iid,
-        origin.dx,
-        origin.dy,
-        fromPort: outHit.portId,
-      );
-      _startAutoPan();
-      return;
-    }
-
-    for (final n in nodes) {
-      if (_hitBody(n, world, s)) {
-        _mode = _DragMode.node;
-        _dragNodeId = n.iid;
-        _startScreen = e.localPosition;
-        _grabOffset = Offset(world.dx - n.x, world.dy - n.y);
-        _clearHover();
-        final additive = HardwareKeyboard.instance.isShiftPressed;
-        ctrl.select(n.iid, additive: additive);
-        _startAutoPan();
-        return;
-      }
-    }
-
-    final wireId = _lastPainter?.hitTestWire(world);
-    if (wireId != null) {
-      ctrl.deleteWire(wireId);
-      _clearHover();
-      return;
-    }
-
-    _mode = _DragMode.pan;
-    _startScreen = e.localPosition;
-    _startPanX = s.panX;
-    _startPanY = s.panY;
-    _clearHover();
-    ctrl.select(null);
-  }
-
-  void _onPointerMove(PointerMoveEvent e, WorkflowUiState s) {
-    _pointerScreen = e.localPosition;
-    final ctrl = ref.read(workflowProvider.notifier);
-    final world = _screenToWorld(e.localPosition, s);
-
-    if (_mode == _DragMode.pan) {
-      final dx = e.localPosition.dx - _startScreen.dx;
-      final dy = e.localPosition.dy - _startScreen.dy;
-      ctrl.setPanZoom(panX: _startPanX + dx, panY: _startPanY + dy);
-    } else if (_mode == _DragMode.node && _dragNodeId != null) {
-      ctrl.moveNode(
-        _dragNodeId!,
-        world.dx - _grabOffset.dx,
-        world.dy - _grabOffset.dy,
-      );
-    } else if (_mode == _DragMode.wire) {
-      _updateWireDrag(world, s);
-    }
-  }
-
-  void _onPointerHover(PointerHoverEvent e, WorkflowUiState s) {
-    _pointerScreen = e.localPosition;
-    _updateHover(e.localPosition, s);
-  }
-
-  void _onPointerUp(PointerUpEvent e, WorkflowUiState s) {
-    final ctrl = ref.read(workflowProvider.notifier);
-    if (_mode == _DragMode.node) {
-      ctrl.finalizeMove();
-    }
-    if (_mode == _DragMode.wire) {
-      final world = _screenToWorld(e.localPosition, s);
-      var toId = _snapTarget?.nodeId;
-      var toPort = _snapTarget?.portId ?? 'in';
-      if (toId == null) {
-        final hit = _findPort(world, s, inputsOnly: true);
-        toId = hit?.nodeId;
-        toPort = hit?.portId ?? 'in';
-      }
-      ctrl.finishDrawingWire(toId, toPort: toPort);
-    }
-    _stopAutoPan();
-    _mode = _DragMode.none;
-    _dragNodeId = null;
-    setState(() {
-      _snapTarget = null;
-      _hoveredPort = null;
-    });
-    _updateHover(e.localPosition, ref.read(workflowProvider));
-  }
-
-  void _onScroll(PointerSignalEvent e, WorkflowUiState s) {
-    if (e is! PointerScrollEvent) return;
-    final ctrl = ref.read(workflowProvider.notifier);
-    final factor = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
-    final oz = s.zoom;
-    final nz = (oz * factor).clamp(0.15, 2.5);
-    final sx = e.localPosition.dx;
-    final sy = e.localPosition.dy;
-    ctrl.setPanZoom(
-      panX: sx - (sx - s.panX) * (nz / oz),
-      panY: sy - (sy - s.panY) * (nz / oz),
-      zoom: nz,
-    );
-  }
-
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final primary = FocusManager.instance.primaryFocus?.context?.widget;
-    if (primary is EditableText) return KeyEventResult.ignored;
-    final ctrl = ref.read(workflowProvider.notifier);
-    final key = event.logicalKey;
-    final meta = HardwareKeyboard.instance.isMetaPressed ||
-        HardwareKeyboard.instance.isControlPressed;
-
-    if (key == LogicalKeyboardKey.keyG) {
-      ctrl.toggleSnapToGrid();
-      return KeyEventResult.handled;
-    }
-    if (meta && key == LogicalKeyboardKey.keyZ) {
-      if (HardwareKeyboard.instance.isShiftPressed) {
-        ctrl.redo();
-      } else {
-        ctrl.undo();
-      }
-      return KeyEventResult.handled;
-    }
-    if (meta && key == LogicalKeyboardKey.keyY) {
-      ctrl.redo();
-      return KeyEventResult.handled;
-    }
-    if (meta && key == LogicalKeyboardKey.keyC) {
-      ctrl.copySelected();
-      return KeyEventResult.handled;
-    }
-    if (meta && key == LogicalKeyboardKey.keyV) {
-      ctrl.pasteClipboard();
-      return KeyEventResult.handled;
-    }
-    if (meta && key == LogicalKeyboardKey.keyS) {
-      ctrl.requestSave();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowLeft) {
-      ctrl.nudgeSelected(-1, 0);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowRight) {
-      ctrl.nudgeSelected(1, 0);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowUp) {
-      ctrl.nudgeSelected(0, -1);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowDown) {
-      ctrl.nudgeSelected(0, 1);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.delete ||
-        key == LogicalKeyboardKey.backspace) {
-      if (_hoveredWireId != null && _mode == _DragMode.none) {
-        ctrl.deleteWire(_hoveredWireId!);
-        _clearHover();
-        return KeyEventResult.handled;
-      }
-      ctrl.deleteSelected();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.escape) {
-      if (_mode == _DragMode.wire) {
-        ctrl.finishDrawingWire(null);
-        _stopAutoPan();
-        _mode = _DragMode.none;
-        setState(() => _snapTarget = null);
-        return KeyEventResult.handled;
-      }
-      ctrl.select(null);
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  MouseCursor _cursor() {
-    if (_mode == _DragMode.pan) return SystemMouseCursors.grabbing;
-    if (_mode == _DragMode.node) return SystemMouseCursors.grabbing;
-    if (_mode == _DragMode.wire) {
-      return _snapTarget != null
-          ? SystemMouseCursors.copy
-          : SystemMouseCursors.precise;
-    }
-    if (_hoveredPort != null) return SystemMouseCursors.precise;
-    if (_hoveredWireId != null) return SystemMouseCursors.click;
-    if (_hoveredNodeId != null) return SystemMouseCursors.grab;
-    return SystemMouseCursors.basic;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = ref.watch(workflowProvider);
-    final drawingValid = _snapTarget != null;
-    final painter = WirePainter(
-      nodes: s.doc.nodes,
-      wires: s.doc.wires,
-      catalog: s.catalog,
-      dashPhase: _dashCtrl.value * 24,
-      hoveredWireId: _hoveredWireId,
-      snapTargetId: _snapTarget?.nodeId,
-      zoom: s.zoom,
-    );
-    _lastPainter = painter;
-    final wireSourceId = s.drawingWire?.fromId;
-    final drawing = s.drawingWire;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
-        return Semantics(
-          label: 'Workflow canvas. Scroll to zoom, drag to pan.',
-          child: Focus(
-            focusNode: _focus,
-            onKeyEvent: _onKey,
-            child: MouseRegion(
-              cursor: _cursor(),
-              onExit: (_) => _clearHover(),
-              child: Listener(
-                onPointerDown: (e) => _onPointerDown(e, s),
-                onPointerMove: (e) => _onPointerMove(e, s),
-                onPointerUp: (e) => _onPointerUp(e, s),
-                onPointerHover: (e) => _onPointerHover(e, s),
-                onPointerSignal: (e) => _onScroll(e, s),
-                child: DragTarget<NodeDef>(
-                  onWillAcceptWithDetails: (_) => !s.embedConfig.readOnly,
-                  onAcceptWithDetails: (details) {
-                    final box = context.findRenderObject() as RenderBox?;
-                    if (box == null) return;
-                    final local = box.globalToLocal(details.offset);
-                    final world = _screenToWorld(
-                      Offset(
-                        local.dx + AnchorSpacing.nodeWidth / 2,
-                        local.dy + AnchorSpacing.nodeHeight / 2,
-                      ),
-                      s,
-                    );
-                    ref.read(workflowProvider.notifier).addNodeFromDef(
-                          details.data,
-                          world.dx,
-                          world.dy,
-                        );
-                  },
-                  builder: (context, candidate, rejected) {
-                    return AnimatedBuilder(
-                      animation: _dashCtrl,
-                      builder: (context, _) {
-                        return ClipRect(
-                          child: Container(
-                            color: Colors.transparent,
-                            child: Stack(
-                              children: [
-                                CustomPaint(
-                                  painter: _DotGridPainter(
-                                    panX: s.panX,
-                                    panY: s.panY,
-                                    zoom: s.zoom,
-                                    emphasize: s.snapToGrid,
-                                    dotColor: s.snapToGrid
-                                        ? (AnchorColors.surfaceIsLight
-                                            ? AnchorColors.slate300
-                                            : AnchorColors.border)
-                                        : (AnchorColors.surfaceIsLight
-                                            ? AnchorColors.slate200
-                                            : AnchorColors.border
-                                                .withValues(alpha: 0.85)),
-                                  ),
-                                  child: const SizedBox.expand(),
-                                ),
-                                Transform(
-                                  transform: Matrix4.identity()
-                                    ..translateByDouble(s.panX, s.panY, 0, 1)
-                                    ..scaleByDouble(s.zoom, s.zoom, 1, 1),
-                                  alignment: Alignment.topLeft,
-                                  child: SizedBox(
-                                    width: AnchorSpacing.worldSize,
-                                    height: AnchorSpacing.worldSize,
-                                    child: Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        CustomPaint(
-                                          size: const Size(
-                                            AnchorSpacing.worldSize,
-                                            AnchorSpacing.worldSize,
-                                          ),
-                                          painter: WirePainter(
-                                            nodes: s.doc.nodes,
-                                            wires: s.doc.wires,
-                                            catalog: s.catalog,
-                                            dashPhase: _dashCtrl.value * 24,
-                                            hoveredWireId: _hoveredWireId,
-                                            snapTargetId: _snapTarget?.nodeId,
-                                            zoom: s.zoom,
-                                          ),
-                                        ),
-                                        ...s.doc.nodes.map((n) {
-                                          PortSide? portHover;
-                                          String? portId;
-                                          if (_hoveredPort?.nodeId == n.iid) {
-                                            portHover = _hoveredPort!.side;
-                                            portId = _hoveredPort!.portId;
-                                          }
-                                          final hasError = s.validation
-                                              .any((v) => v.nodeId == n.iid);
-                                          return Positioned(
-                                            left: n.x,
-                                            top: n.y,
-                                            child: IgnorePointer(
-                                              child: WorkflowNodeCard(
-                                                node: n,
-                                                type: _typeOf(n, s),
-                                                selected: n.iid == s.selectedId ||
-                                                    s.selectedIds.contains(n.iid),
-                                                hovered: _hoveredNodeId == n.iid,
-                                                hoveredPort: portHover,
-                                                hoveredPortId: portId,
-                                                snapTarget:
-                                                    _snapTarget?.nodeId == n.iid,
-                                                wireSource:
-                                                    wireSourceId == n.iid,
-                                                hasError: hasError,
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (drawing != null)
-                                  Positioned.fill(
-                                    child: IgnorePointer(
-                                      child: CustomPaint(
-                                        painter: DrawingWirePainter(
-                                          from: Offset(
-                                            drawing.fx * s.zoom + s.panX,
-                                            drawing.fy * s.zoom + s.panY,
-                                          ),
-                                          to: Offset(
-                                            drawing.tx * s.zoom + s.panX,
-                                            drawing.ty * s.zoom + s.panY,
-                                          ),
-                                          valid: drawingValid,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                if (_hoveredWireId != null &&
-                                    _mode == _DragMode.none)
-                                  Positioned(
-                                    top: 12,
-                                    left: 0,
-                                    right: 0,
-                                    child: IgnorePointer(
-                                      child: Center(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AnchorColors.slate900
-                                                .withValues(alpha: 0.85),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                          ),
-                                          child: const Text(
-                                            'Click link to remove',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                Positioned(
-                                  bottom: 16,
-                                  left: 0,
-                                  right: 0,
-                                  child: IgnorePointer(
-                                    child: Text(
-                                      'Scroll to zoom · drag canvas to pan · Del to remove',
-                                      textAlign: TextAlign.center,
-                                      style: AnchorTypography.monoSmall.copyWith(
-                                        color: AnchorColors.chromeMuted,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (s.doc.nodes.isEmpty)
-                                  Center(
-                                    child: Text(
-                                      'No nodes yet — drag from the palette',
-                                      style: TextStyle(
-                                        color: AnchorColors.chromeMuted,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.delete): ctrl.deleteSelected,
+        const SingleActivator(LogicalKeyboardKey.backspace): ctrl.deleteSelected,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): ctrl.undo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): ctrl.undo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): ctrl.redo,
+        const SingleActivator(LogicalKeyboardKey.keyY, meta: true): ctrl.redo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, shift: true, control: true):
+            ctrl.redo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, shift: true, meta: true):
+            ctrl.redo,
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+            ctrl.copySelected,
+        const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+            ctrl.copySelected,
+        const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            ctrl.pasteClipboard,
+        const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            ctrl.pasteClipboard,
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+            ctrl.requestSave,
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true):
+            ctrl.requestSave,
+        const SingleActivator(LogicalKeyboardKey.keyG): ctrl.toggleSnapToGrid,
+        const SingleActivator(LogicalKeyboardKey.escape): () => ctrl.select(null),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft):
+            () => ctrl.nudgeSelected(-1, 0),
+        const SingleActivator(LogicalKeyboardKey.arrowRight):
+            () => ctrl.nudgeSelected(1, 0),
+        const SingleActivator(LogicalKeyboardKey.arrowUp):
+            () => ctrl.nudgeSelected(0, -1),
+        const SingleActivator(LogicalKeyboardKey.arrowDown):
+            () => ctrl.nudgeSelected(0, 1),
       },
+      child: Focus(
+        autofocus: true,
+        child: DragTarget<NodeDef>(
+          onAcceptWithDetails: (details) {
+            final world = RenderBoxUtils.screenToWorld(
+              controller.editorKey,
+              details.offset,
+              controller.viewportOffset,
+              controller.viewportZoom,
+            );
+            ctrl.addNodeFromDef(
+              details.data,
+              world?.dx ?? 120,
+              world?.dy ?? 120,
+            );
+          },
+          builder: (context, candidate, rejected) {
+            return FlNodesWidget(
+              controller: controller,
+              expandToParent: true,
+              nodeBuilder: (node, heid) => AutoflowNodeWidget(
+                node: node,
+                controller: heid,
+                session: session,
+                showPortContextMenu: _portMenu,
+                showNodeCreationMenu: _nodeCreationMenu,
+                showNodeContextMenu: _nodeMenu,
+              ),
+              showPortContextMenu: _portMenu,
+              showCanvasContextMenu: _canvasMenu,
+              showNodeCreationMenu: _nodeCreationMenu,
+              showLinkContextMenu: _linkMenu,
+            );
+          },
+        ),
+      ),
     );
   }
 }
 
-class _DotGridPainter extends CustomPainter {
-  _DotGridPainter({
-    required this.panX,
-    required this.panY,
-    required this.zoom,
-    required this.dotColor,
-    this.emphasize = false,
-  });
+void _portMenu(
+  BuildContext context,
+  Offset position,
+  FlNodesController controller,
+  PortLocator locator,
+) {
+  _showItems(context, position, [
+    PopupMenuItem<String>(
+      child: const Text('Disconnect'),
+      onTap: () => controller.breakPortLinks(locator.nodeId, locator.portId),
+    ),
+  ]);
+}
 
-  final double panX;
-  final double panY;
-  final double zoom;
-  final Color dotColor;
-  final bool emphasize;
+void _nodeMenu(
+  BuildContext context,
+  Offset position,
+  FlNodesController controller,
+  FlNodeDataModel node,
+) {
+  _showItems(context, position, [
+    PopupMenuItem<String>(
+      child: const Text('Delete node'),
+      onTap: () => controller.removeNodeById(node.id),
+    ),
+  ]);
+}
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    const step = 28.0;
-    final paint = Paint()..color = dotColor;
-    final ox = panX % (step * zoom);
-    final oy = panY % (step * zoom);
-    final spacing = step * zoom;
-    final r = emphasize ? 1.5 : 1.2;
-    for (var x = ox; x < size.width; x += spacing) {
-      for (var y = oy; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), r, paint);
-      }
-    }
-  }
+void _linkMenu(
+  BuildContext context,
+  String linkId,
+  Offset position,
+  FlNodesController controller,
+) {
+  _showItems(context, position, [
+    PopupMenuItem<String>(
+      child: const Text('Delete wire'),
+      onTap: () => controller.removeLinkById(linkId),
+    ),
+  ]);
+}
 
-  @override
-  bool shouldRepaint(covariant _DotGridPainter oldDelegate) {
-    return oldDelegate.panX != panX ||
-        oldDelegate.panY != panY ||
-        oldDelegate.zoom != zoom ||
-        oldDelegate.emphasize != emphasize ||
-        oldDelegate.dotColor != dotColor;
-  }
+void _canvasMenu(
+  BuildContext context,
+  Offset position,
+  FlNodesController controller,
+  PortLocator? locator,
+) {
+  _showItems(context, position, [
+    PopupMenuItem<String>(
+      child: const Text('Reset view'),
+      onTap: () {
+        controller.setViewportOffset(Offset.zero, absolute: true, animate: false);
+        controller.setViewportZoom(1, absolute: true, animate: false);
+      },
+    ),
+  ]);
+}
+
+void _nodeCreationMenu(
+  BuildContext context,
+  Offset lastFocalPoint,
+  FlNodesController controller,
+  PortLocator? locator,
+  void Function() onTmpLinkCancel,
+) {
+  // Palette is the node-creation UI; dropping a wire on empty canvas cancels it.
+  onTmpLinkCancel();
+}
+
+Future<void> _showItems(
+  BuildContext context,
+  Offset position,
+  List<PopupMenuEntry<String>> items,
+) {
+  return showMenu<String>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      position.dx,
+      position.dy,
+      position.dx,
+      position.dy,
+    ),
+    items: items,
+  );
 }
