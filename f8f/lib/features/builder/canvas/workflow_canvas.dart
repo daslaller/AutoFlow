@@ -7,11 +7,33 @@ import 'package:autoflow/features/builder/canvas/autoflow_node.dart';
 import 'package:autoflow/features/builder/workflow_controller.dart';
 
 /// Editor canvas backed by HeidNodes (`FlNodesWidget`).
-class WorkflowCanvas extends ConsumerWidget {
+class WorkflowCanvas extends ConsumerStatefulWidget {
   const WorkflowCanvas({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WorkflowCanvas> createState() => _WorkflowCanvasState();
+}
+
+class _WorkflowCanvasState extends ConsumerState<WorkflowCanvas> {
+  /// The beams keep HeidNodes' active-links ticker running, and that ticker is
+  /// vended by a descendant's `TickerProvider` — which Flutter disposes before
+  /// this widget, and before the host disposes the controller. `deactivate`
+  /// runs on the way *down*, so it is the one moment where the ticker can
+  /// still be stopped cleanly. See [HeidGraph.pauseLinkEffects].
+  @override
+  void deactivate() {
+    ref.read(workflowProvider.notifier).graph.pauseLinkEffects();
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    ref.read(workflowProvider.notifier).graph.resumeLinkEffects();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ctrl = ref.read(workflowProvider.notifier);
     final controller = ctrl.graph.controller;
     final session = ctrl.graph.session;
