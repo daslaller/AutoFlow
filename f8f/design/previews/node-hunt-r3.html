@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>F8F — Node Hunt, Round 3 (scale)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #eceff3; color: #0f172a; padding: 28px; }
+  .page-h { max-width: 1160px; margin: 0 auto 22px; }
+  .page-h h1 { font-size: 20px; margin: 0 0 4px; }
+  .page-h p { margin: 0; font-size: 13px; color: #64748b; }
+  .tile { max-width: 1160px; margin: 0 auto 26px; background: #fff; border-radius: 14px;
+    border: 1px solid #dde3ec; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+  .tile-h { padding: 14px 18px; border-bottom: 1px solid #eef2f7; display: flex; align-items: baseline; gap: 10px; }
+  .tile-h .num { font: 600 11px ui-monospace, Menlo, monospace; color: #94a3b8; }
+  .tile-h h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .tile-h .tag { font-size: 11px; color: #64748b; }
+  .tile-h .why { margin-left: auto; font-size: 12px; color: #64748b; max-width: 520px; text-align: right; }
+  .stage { position: relative; overflow: hidden; height: var(--stageh, 440px); }
+  .stage svg.wires { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 0; }
+  .stage .node { position: absolute; z-index: 1; }
+
+  /* ---------------- ORBIT family (sizes come from CSS vars) ---------------- */
+  .fam-orbit .stage { background: radial-gradient(130% 110% at 18% 0%, #fcfdff, #e6edf7); }
+  .fam-orbit .node { width: var(--w); text-align: center; }
+  .fam-orbit .disc { width: var(--disc); height: var(--disc); margin: 0 auto; border-radius: 50%; position: relative;
+    background: #fff; display: grid; place-items: center; color: var(--k);
+    box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--k) 78%, transparent), 0 2px 6px rgba(15,23,42,.09); }
+  .fam-orbit .disc::before { content: ""; position: absolute; inset: calc(var(--ringw) * -1); border-radius: 50%;
+    background: conic-gradient(var(--ring, color-mix(in srgb, var(--k) 58%, #fff)) var(--pct, 100%), #dfe6ef 0); }
+  .fam-orbit .disc::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 50% 28%, #fff, color-mix(in srgb, var(--k) 8%, #fff)); }
+  .fam-orbit .disc svg { width: var(--icon); height: var(--icon); position: relative; z-index: 2; }
+  .fam-orbit .kindlabel { position: relative; z-index: 2; margin-top: 12px; font: 700 var(--kindsz) ui-sans-serif;
+    letter-spacing: .16em; color: color-mix(in srgb, var(--k) 82%, #64748b); }
+  .fam-orbit .t { margin-top: 4px; font-size: var(--title); font-weight: 650; line-height: 1.22; letter-spacing: -.01em; }
+  .fam-orbit .m { display: inline-block; margin-top: 6px; max-width: 100%; font: var(--meta) ui-monospace, Menlo, monospace;
+    color: #7c8899; background: rgba(255,255,255,.75); border: 1px solid #e4eaf2; border-radius: 999px;
+    padding: 2px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fam-orbit .badge { position: absolute; left: 50%; top: calc(var(--disc) - 12px); transform: translateX(-50%);
+    font: 700 var(--kindsz) ui-sans-serif; letter-spacing: .1em; padding: 3px 9px; border-radius: 999px; color: #fff; z-index: 3; white-space: nowrap;
+    box-shadow: 0 3px 8px -2px rgba(15,23,42,.35); }
+  .fam-orbit .badge.ok { background: #16a34a; } .fam-orbit .badge.live { background: #2563eb; } .fam-orbit .badge.bad { background: #dc2626; }
+  .fam-orbit .node.st-selected .disc { box-shadow: 0 0 0 6px color-mix(in srgb, var(--k) 17%, transparent),
+    0 16px 32px -12px color-mix(in srgb, var(--k) 85%, transparent); }
+  .fam-orbit .node.st-running .disc { --ring: #2563eb; --pct: 68%; }
+  .fam-orbit .node.st-success .disc { --ring: #16a34a; }
+  .fam-orbit .node.st-error .disc { --ring: #dc2626; }
+  .fam-orbit .dot { position: absolute; width: var(--dotsz); height: var(--dotsz); border-radius: 50%;
+    background: var(--k); border: 3px solid #fff; box-shadow: 0 1px 3px rgba(15,23,42,.25); }
+  .fam-orbit .pin .dot { left: calc((var(--w) - var(--disc)) / 2 - var(--dotsz) / 2 - var(--ringw));
+    top: calc(var(--disc) / 2 - var(--dotsz) / 2); }
+  .fam-orbit .pout .dot { right: calc((var(--w) - var(--disc)) / 2 - var(--dotsz) / 2 - var(--ringw)); }
+  .fam-orbit .pout .dot.p0 { top: calc(var(--disc) / 2 - var(--dotsz) / 2); }
+  .fam-orbit .pout.multi .dot.p0 { top: calc(var(--disc) * 0.11); right: calc((var(--w) - var(--disc)) / 2 + var(--disc) * 0.03); }
+  .fam-orbit .pout.multi .dot.p1 { top: calc(var(--disc) * 0.74); right: calc((var(--w) - var(--disc)) / 2 + var(--disc) * 0.03); }
+  .fam-orbit .plabel { position: absolute; font: 700 var(--kindsz) ui-sans-serif; letter-spacing: .1em;
+    text-transform: uppercase; color: color-mix(in srgb, var(--k) 85%, #475569); }
+  .fam-orbit .plabel.l0 { top: calc(var(--disc) * 0.02); right: calc((var(--w) - var(--disc)) / 2 - 14px); }
+  .fam-orbit .plabel.l1 { top: calc(var(--disc) * 0.86); right: calc((var(--w) - var(--disc)) / 2 - 16px); }
+
+  .v-orbitL  { --stageh: 480px; --w: 150px; --disc: 108px; --ringw: 3.5px; --icon: 36px; --title: 14px; --meta: 11px; --kindsz: 8.5px; --dotsz: 14px; }
+  .v-orbitXL { --stageh: 570px; --w: 186px; --disc: 140px; --ringw: 4.5px; --icon: 46px; --title: 16px; --meta: 12px; --kindsz: 9.5px; --dotsz: 16px; }
+
+  /* ---------------- ORBIT PLATE XL ---------------- */
+  .v-plateXL { --stageh: 430px; }
+  .fam-plate .stage { background: radial-gradient(130% 110% at 18% 0%, #fcfdff, #e6edf7); }
+  .fam-plate .node { height: 104px; display: flex; align-items: center; }
+  .fam-plate .disc { width: 104px; height: 104px; border-radius: 50%; position: relative; flex: none; z-index: 2;
+    background: #fff; display: grid; place-items: center; color: var(--k);
+    box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--k) 82%, transparent), 0 2px 5px rgba(15,23,42,.12); }
+  .fam-plate .disc::before { content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    background: conic-gradient(var(--ring, color-mix(in srgb, var(--k) 58%, #fff)) var(--pct, 100%), #dfe6ef 0); }
+  .fam-plate .disc::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 50% 28%, #fff, color-mix(in srgb, var(--k) 8%, #fff)); }
+  .fam-plate .disc svg { width: 38px; height: 38px; position: relative; z-index: 2; }
+  .fam-plate .plate { margin-left: -34px; padding: 14px 22px 14px 46px; height: 82px; width: 216px;
+    border-radius: 0 41px 41px 0; background: #fff; border: 1px solid rgba(15,23,42,.07); border-left: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    box-shadow: 0 10px 22px -14px rgba(15,23,42,.4), 0 30px 46px -32px rgba(15,23,42,.55); }
+  .fam-plate .kindlabel { font: 700 9px ui-sans-serif; letter-spacing: .16em; color: color-mix(in srgb, var(--k) 80%, #64748b); }
+  .fam-plate .t { margin-top: 3px; font-size: 15px; font-weight: 650; letter-spacing: -.01em; white-space: nowrap; }
+  .fam-plate .m { margin-top: 3px; font: 11.5px ui-monospace, Menlo, monospace; color: #94a3b8;
+    white-space: nowrap; max-width: 126px; overflow: hidden; text-overflow: ellipsis; }
+  .fam-plate .badge { position: absolute; left: 52px; top: 84px; transform: translateX(-50%); z-index: 4;
+    font: 700 9px ui-sans-serif; letter-spacing: .1em; padding: 3px 9px; border-radius: 999px; color: #fff; white-space: nowrap;
+    box-shadow: 0 3px 8px -2px rgba(15,23,42,.35); }
+  .fam-plate .badge.ok { background: #16a34a; } .fam-plate .badge.live { background: #2563eb; } .fam-plate .badge.bad { background: #dc2626; }
+  .fam-plate .node.st-selected .plate { border-color: transparent; box-shadow: 0 0 0 2px var(--k), 0 0 0 6px color-mix(in srgb, var(--k) 15%, transparent); }
+  .fam-plate .node.st-selected .disc { box-shadow: 0 0 0 6px color-mix(in srgb, var(--k) 16%, transparent), 0 14px 28px -14px color-mix(in srgb, var(--k) 82%, transparent); }
+  .fam-plate .node.st-running .disc { --ring: #2563eb; --pct: 68%; }
+  .fam-plate .node.st-success .disc { --ring: #16a34a; }
+  .fam-plate .node.st-error .disc { --ring: #dc2626; }
+  .fam-plate .dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--k); border: 3px solid #fff; z-index: 3;
+    box-shadow: 0 1px 3px rgba(15,23,42,.25); }
+  .fam-plate .pin .dot { left: -7px; top: 45px; }
+  .fam-plate .pout .dot { right: -7px; }
+  .fam-plate .pout .dot.p0 { top: 45px; }
+  .fam-plate .pout.multi .dot.p0 { top: 24px; }
+  .fam-plate .pout.multi .dot.p1 { top: 66px; }
+  .fam-plate .plabel { position: absolute; right: 12px; z-index: 4; font: 700 9px ui-sans-serif; letter-spacing: .12em;
+    text-transform: uppercase; color: color-mix(in srgb, var(--k) 82%, #475569); background: #fff;
+    border: 1px solid #eef2f7; border-radius: 999px; padding: 2px 8px; }
+  .fam-plate .plabel.l0 { top: 10px; } .fam-plate .plabel.l1 { top: 66px; }
+
+  /* ---------------- SOFT PRODUCT XL ---------------- */
+  .fam-soft .stage { background: linear-gradient(165deg, #fbfcfe, #e9eff8); }
+  .fam-soft .node { width: 268px; border-radius: 22px; padding: 17px; background: #fff;
+    border: 1px solid rgba(15,23,42,.06);
+    box-shadow: 0 1px 2px rgba(15,23,42,.05), 0 14px 26px -14px rgba(15,23,42,.24), 0 40px 60px -38px rgba(15,23,42,.5); }
+  .fam-soft .node::before { content: ""; position: absolute; inset: 0; border-radius: 22px; pointer-events: none;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--k) 10%, transparent), transparent 55%); }
+  .fam-soft .rowtop { display: flex; align-items: center; gap: 14px; position: relative; }
+  .fam-soft .itile { width: 52px; height: 52px; border-radius: 17px; flex: none; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--k) 70%, #fff), var(--k));
+    box-shadow: 0 8px 18px -7px color-mix(in srgb, var(--k) 90%, transparent), inset 0 1px 0 rgba(255,255,255,.45); }
+  .fam-soft .itile svg { width: 25px; height: 25px; }
+  .fam-soft .kindlabel { font: 700 9px ui-sans-serif; letter-spacing: .16em; color: color-mix(in srgb, var(--k) 78%, #64748b); }
+  .fam-soft .t { margin-top: 3px; font-size: 16px; font-weight: 640; letter-spacing: -.015em; }
+  .fam-soft .m { margin-top: 3px; font: 12px ui-monospace, Menlo, monospace; color: #94a3b8; }
+  .fam-soft .badge2 { position: absolute; top: 0; right: 0; font: 700 9px ui-sans-serif; letter-spacing: .1em; padding: 4px 9px; border-radius: 999px; }
+  .fam-soft .badge2.ok { background: #dcfce7; color: #15803d; } .fam-soft .badge2.live { background: #dbeafe; color: #1d4ed8; }
+  .fam-soft .badge2.bad { background: #fee2e2; color: #b91c1c; }
+  .fam-soft .foot { position: relative; margin-top: 15px; padding-top: 13px; border-top: 1px solid #eef2f7; display: flex; gap: 7px; }
+  .fam-soft .badge { font: 700 10px ui-sans-serif; letter-spacing: .1em; padding: 5px 12px; border-radius: 999px;
+    background: color-mix(in srgb, var(--k) 12%, #fff); color: color-mix(in srgb, var(--k) 78%, #0f172a); }
+  .fam-soft .node.st-selected { border-color: transparent;
+    box-shadow: 0 0 0 2px var(--k), 0 0 0 7px color-mix(in srgb, var(--k) 15%, transparent), 0 18px 32px -16px rgba(15,23,42,.32); }
+  .fam-soft .node.st-running { box-shadow: 0 0 0 1.5px #bfdbfe, 0 14px 26px -14px rgba(37,99,235,.35); }
+  .fam-soft .dot { position: absolute; width: 15px; height: 15px; border-radius: 6px; background: var(--k);
+    box-shadow: 0 0 0 4px #fff, 0 0 0 5.5px color-mix(in srgb, var(--k) 26%, #fff); }
+  .fam-soft .pin .dot { left: -7px; top: 40px; }
+  .fam-soft .pout .dot { right: -7px; }
+  .fam-soft .pout .dot.p0 { top: 40px; }
+  .fam-soft .pout.multi .dot.p0 { top: 38px; }
+  .fam-soft .pout.multi .dot.p1 { top: 84px; }
+
+  /* ---------------- GLASS XL ---------------- */
+  .fam-glass .stage { background:
+      radial-gradient(55% 75% at 12% 8%, rgba(56,189,248,.22), transparent 60%),
+      radial-gradient(45% 65% at 88% 92%, rgba(168,85,247,.22), transparent 60%),
+      radial-gradient(40% 50% at 60% 40%, rgba(16,185,129,.10), transparent 60%), #0a1020; }
+  .fam-glass .node { width: 264px; border-radius: 19px; padding: 16px 17px;
+    background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.035));
+    border: 1px solid rgba(255,255,255,.13); backdrop-filter: blur(14px) saturate(1.3);
+    box-shadow: 0 26px 50px -26px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.17); }
+  .fam-glass .node::before { content: ""; position: absolute; left: 18px; right: 18px; top: 0; height: 1.5px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--k), transparent); }
+  .fam-glass .rowtop { display: flex; align-items: center; gap: 13px; }
+  .fam-glass .itile { width: 46px; height: 46px; border-radius: 15px; flex: none; display: grid; place-items: center; color: var(--k);
+    background: color-mix(in srgb, var(--k) 16%, transparent); border: 1px solid color-mix(in srgb, var(--k) 32%, transparent); }
+  .fam-glass .itile svg { width: 22px; height: 22px; }
+  .fam-glass .kindlabel { font: 700 9px ui-sans-serif; letter-spacing: .16em; color: var(--k); }
+  .fam-glass .t { margin-top: 4px; color: #f8fafc; font-size: 16px; font-weight: 620; letter-spacing: -.015em; }
+  .fam-glass .m { margin-top: 3px; font: 12px ui-monospace, Menlo, monospace; color: rgba(226,232,240,.48); }
+  .fam-glass .badge2 { margin-left: auto; align-self: flex-start; font: 700 9px ui-sans-serif; letter-spacing: .1em; padding: 4px 9px; border-radius: 999px; }
+  .fam-glass .badge2.ok { background: rgba(52,211,153,.16); color: #6ee7b7; }
+  .fam-glass .badge2.live { background: rgba(56,189,248,.18); color: #7dd3fc; }
+  .fam-glass .badge2.bad { background: rgba(251,113,133,.18); color: #fda4af; }
+  .fam-glass .foot { margin-top: 15px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.09); display: flex; gap: 7px; }
+  .fam-glass .badge { font: 700 10px ui-sans-serif; letter-spacing: .1em; padding: 5px 12px; border-radius: 999px;
+    background: color-mix(in srgb, var(--k) 15%, transparent); color: color-mix(in srgb, var(--k) 70%, #f8fafc); }
+  .fam-glass .node.st-selected { box-shadow: 0 0 0 1.5px var(--k), 0 0 40px -8px color-mix(in srgb, var(--k) 75%, transparent), 0 26px 50px -26px rgba(0,0,0,.95); }
+  .fam-glass .node.st-running { border-color: rgba(56,189,248,.5); box-shadow: 0 0 32px -10px rgba(56,189,248,.85), 0 26px 50px -26px rgba(0,0,0,.95); }
+  .fam-glass .dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--k);
+    box-shadow: 0 0 14px 2px color-mix(in srgb, var(--k) 70%, transparent), 0 0 0 4px rgba(10,16,32,.6); }
+  .fam-glass .pin .dot { left: -7px; top: 40px; }
+  .fam-glass .pout .dot { right: -7px; }
+  .fam-glass .pout .dot.p0 { top: 40px; }
+  .fam-glass .pout.multi .dot.p0 { top: 38px; }
+  .fam-glass .pout.multi .dot.p1 { top: 84px; }
+
+  /* ---------------- CARD XL ---------------- */
+  .fam-card .stage { background-color: #f1f5f9;
+    background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px); background-size: 26px 26px; }
+  .fam-card .node { width: 262px; background: #fff; border: 1px solid #dce3ed; border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.07), 0 14px 28px -16px rgba(15,23,42,.35); }
+  .fam-card .head { height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 14px; color: #fff;
+    font: 700 11px ui-sans-serif; letter-spacing: .12em; border-radius: 13px 13px 0 0; background: var(--k); }
+  .fam-card .head svg { width: 16px; height: 16px; }
+  .fam-card .head .badge2 { margin-left: auto; font: 700 9px ui-sans-serif; letter-spacing: .1em; padding: 3px 8px;
+    border-radius: 999px; background: rgba(255,255,255,.22); }
+  .fam-card .body { padding: 14px; }
+  .fam-card .t { font-size: 16px; font-weight: 640; letter-spacing: -.015em; }
+  .fam-card .m { margin-top: 5px; font: 12px ui-monospace, Menlo, monospace; color: #64748b; }
+  .fam-card .foot { margin-top: 13px; padding-top: 12px; border-top: 1px solid #eef2f7; display: flex; gap: 7px; }
+  .fam-card .badge { font: 700 10px ui-sans-serif; letter-spacing: .1em; padding: 5px 12px; border-radius: 6px;
+    background: color-mix(in srgb, var(--k) 12%, #fff); color: color-mix(in srgb, var(--k) 78%, #0f172a); }
+  .fam-card .node.st-selected { border-color: transparent; box-shadow: 0 0 0 2px var(--k), 0 0 0 6px color-mix(in srgb, var(--k) 16%, transparent), 0 14px 28px -16px rgba(15,23,42,.35); }
+  .fam-card .dot { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: var(--k); border: 3px solid #fff;
+    box-shadow: 0 1px 3px rgba(15,23,42,.25); }
+  .fam-card .pin .dot { left: -7px; top: 58px; }
+  .fam-card .pout .dot { right: -7px; }
+  .fam-card .pout .dot.p0 { top: 58px; }
+  .fam-card .pout.multi .dot.p0 { top: 56px; }
+  .fam-card .pout.multi .dot.p1 { top: 100px; }
+  .fam-card .plabel { position: absolute; right: 16px; font: 700 9.5px ui-sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8; }
+  .fam-card .plabel.l0 { top: 52px; } .fam-card .plabel.l1 { top: 96px; }
+</style>
+</head>
+<body>
+<div class="page-h">
+  <h1>F8F — node hunt, round 3: scale</h1>
+  <p>Orbit at two larger sizes, plus the card-shaped looks blown up to match. Same graph, mid-preview.</p>
+</div>
+<div id="gallery"></div>
+<script>
+const ICONS = {
+  trigger:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
+  action:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12 6 6 6-6 6"/></svg>',
+  condition:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a5 5 0 0 0 5 5h7"/><path d="M6 21v-5a5 5 0 0 1 5-5h7"/><path d="m15 10 3 3-3 3"/></svg>',
+  output:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>',
+};
+const KIND_LABEL = { trigger:'TRIGGER', action:'ACTION', condition:'LOGIC', output:'OUTPUT' };
+const LIGHT = { trigger:'#059669', action:'#2563eb', condition:'#ca8a04', output:'#e11d48' };
+const DARK  = { trigger:'#34d399', action:'#60a5fa', condition:'#fbbf24', output:'#fb7185' };
+
+const GRAPH = [
+  { id:'n1', kind:'trigger',   title:'Ticket Created', meta:'shop.ticket.new',   col:0, row:0,     st:'success',  outs:['out'] },
+  { id:'n2', kind:'action',    title:'HTTP Request',   meta:'GET /crm/customer', col:1, row:0,     st:'success',  ins:['in'], outs:['out'] },
+  { id:'n3', kind:'condition', title:'If / Else',      meta:'status == intake',  col:2, row:0,     st:'selected', ins:['in'], outs:['true','false'] },
+  { id:'n4', kind:'action',    title:'Send Message',   meta:'Welcome SMS',       col:3, row:-0.68, st:'running',  ins:['in'], outs:['out'] },
+  { id:'n5', kind:'output',    title:'Notify Tech',    meta:'tech.assigned',     col:3, row:0.78,  st:'idle',     ins:['in'] },
+];
+const LINKS = [['n1','out','n2','in'],['n2','out','n3','in'],['n3','true','n4','in'],['n3','false','n5','in']];
+
+const dot = (n,p,d,i) => `<i class="dot p${i}" data-node="${n.id}" data-port="${p}" data-dir="${d}"></i>`;
+const outs = n => n.outs || [], ins = n => n.ins || [];
+const labelled = (n,p,d,i) => (outs(n).length>1 ? `<span class="plabel l${i}">${p}</span>` : '') + dot(n,p,d,i);
+const pin = n => ins(n).length ? `<div class="pin">${ins(n).map((p,i)=>dot(n,p,'in',i)).join('')}</div>` : '';
+const pout = (n,f=dot) => outs(n).length
+  ? `<div class="pout${outs(n).length>1?' multi':''}">${outs(n).map((p,i)=>f(n,p,'out',i)).join('')}</div>` : '';
+const st2 = st => st==='success' ? '<span class="badge2 ok">0.4s</span>'
+  : st==='running' ? '<span class="badge2 live">RUNNING</span>'
+  : st==='error' ? '<span class="badge2 bad">FAILED</span>' : '';
+const orbitBadge = st => st==='success' ? '<span class="badge ok">0.4s</span>'
+  : st==='running' ? '<span class="badge live">RUNNING</span>'
+  : st==='error' ? '<span class="badge bad">FAILED</span>' : '';
+
+const orbitTpl = (n, st) => `<div class="node st-${st}" style="--k:${LIGHT[n.kind]}">
+  <div class="disc">${ICONS[n.kind]}</div>${orbitBadge(st)}
+  <div class="kindlabel">${KIND_LABEL[n.kind]}</div>
+  <div class="t">${n.title}</div><div class="m">${n.meta}</div>
+  ${pin(n)}${pout(n, labelled)}</div>`;
+
+const VARIANTS = [
+  { slug:'orbitL', fam:'orbit', name:'Orbit L', tags:'108px disc · kind label · config pill',
+    why:'The favourite, one size up. Kind label added above the title, config moved into a pill so it reads as a value, not a caption.',
+    palette:LIGHT, colW:238, rowH:170, baseY:130, wire:{w:2.6}, tpl:orbitTpl },
+  { slug:'orbitXL', fam:'orbit', name:'Orbit XL', tags:'140px disc · maximum presence',
+    why:'As big as the disc can get before an eight-step flow stops fitting on screen. The ring becomes a real progress gauge at this size.',
+    palette:LIGHT, colW:276, rowH:190, baseY:155, wire:{w:3}, tpl:orbitTpl },
+  { slug:'plateXL', fam:'plate', name:'Orbit Plate XL', tags:'104px disc + plate · hybrid',
+    why:'Same big disc, but the label lives on a plate welded to its side — keeps the round read while giving the text a proper home.',
+    palette:LIGHT, colW:262, rowH:152, baseY:172, wire:{w:2.6},
+    tpl: (n, st) => `<div class="node st-${st}" style="--k:${LIGHT[n.kind]}">
+      <div class="disc">${ICONS[n.kind]}</div>${orbitBadge(st)}
+      <div class="plate"><div class="kindlabel">${KIND_LABEL[n.kind]}</div>
+        <div class="t">${n.title}</div><div class="m">${n.meta}</div></div>
+      ${pin(n)}${pout(n, labelled)}</div>` },
+  { slug:'softXL', fam:'soft', name:'Soft Product XL', tags:'268px card · 52px tile',
+    why:'The light card at the same visual weight as Orbit XL — bigger tile, 16px title, branch chips as real buttons.',
+    palette:LIGHT, colW:285, rowH:175, baseY:150, wire:{w:2.8},
+    tpl: (n, st) => `<div class="node st-${st}" style="--k:${LIGHT[n.kind]}">
+      <div class="rowtop"><div class="itile">${ICONS[n.kind]}</div>
+        <div><div class="kindlabel">${KIND_LABEL[n.kind]}</div><div class="t">${n.title}</div><div class="m">${n.meta}</div></div>
+        ${st2(st)}</div>
+      ${outs(n).length>1 ? `<div class="foot">${outs(n).map(p=>`<span class="badge">${p.toUpperCase()}</span>`).join('')}</div>` : ''}
+      ${pin(n)}${pout(n)}</div>` },
+  { slug:'glassXL', fam:'glass', name:'Glass XL', tags:'264px card · dark',
+    why:'The dark twin at the larger size — icon tile added so it carries the same silhouette as Soft Product.',
+    palette:DARK, colW:285, rowH:175, baseY:150, wire:{w:2.8, glow:true},
+    tpl: (n, st) => `<div class="node st-${st}" style="--k:${DARK[n.kind]}">
+      <div class="rowtop"><div class="itile">${ICONS[n.kind]}</div>
+        <div><div class="kindlabel">${KIND_LABEL[n.kind]}</div><div class="t">${n.title}</div><div class="m">${n.meta}</div></div>
+        ${st2(st)}</div>
+      ${outs(n).length>1 ? `<div class="foot">${outs(n).map(p=>`<span class="badge">${p.toUpperCase()}</span>`).join('')}</div>` : ''}
+      ${pin(n)}${pout(n)}</div>` },
+  { slug:'cardXL', fam:'card', name:'Card XL', tags:'262px card · header band',
+    why:'The classic scaled up for reference — this is the baseline every other look has to beat.',
+    palette:LIGHT, colW:285, rowH:175, baseY:145, wire:{w:2.8},
+    tpl: (n, st) => `<div class="node st-${st}" style="--k:${LIGHT[n.kind]}">
+      <div class="head">${ICONS[n.kind]}${KIND_LABEL[n.kind]}${st2(st)}</div>
+      <div class="body"><div class="t">${n.title}</div><div class="m">${n.meta}</div>
+        ${outs(n).length>1 ? `<div class="foot">${outs(n).map(p=>`<span class="badge">${p.toUpperCase()}</span>`).join('')}</div>` : ''}</div>
+      ${pin(n)}${pout(n, labelled)}</div>` },
+];
+
+const gallery = document.getElementById('gallery');
+VARIANTS.forEach((V, vi) => {
+  const tile = document.createElement('section');
+  tile.className = `tile v-${V.slug} fam-${V.fam}`;
+  tile.id = 'tile-' + V.slug;
+  tile.innerHTML = `<div class="tile-h"><span class="num">${String(vi+1).padStart(2,'0')}</span>
+    <h2>${V.name}</h2><span class="tag">${V.tags}</span><span class="why">${V.why}</span></div>
+    <div class="stage"><svg class="wires"></svg></div>`;
+  gallery.appendChild(tile);
+  const stage = tile.querySelector('.stage');
+  GRAPH.forEach(n => {
+    const box = document.createElement('div');
+    box.innerHTML = V.tpl(n, n.st).trim();
+    const el = box.firstElementChild;
+    el.style.left = (30 + n.col * V.colW) + 'px';
+    el.style.top = (V.baseY + n.row * V.rowH) + 'px';
+    stage.appendChild(el);
+  });
+});
+
+requestAnimationFrame(() => {
+  VARIANTS.forEach(V => {
+    const stage = document.querySelector('#tile-' + V.slug + ' .stage');
+    const svg = stage.querySelector('svg.wires');
+    const sb = stage.getBoundingClientRect();
+    const at = (nid, port, dir) => {
+      const d = stage.querySelector(`.dot[data-node="${nid}"][data-port="${port}"][data-dir="${dir}"]`);
+      if (!d) return null;
+      const r = d.getBoundingClientRect();
+      return { x: r.left - sb.left + r.width / 2, y: r.top - sb.top + r.height / 2 };
+    };
+    let out = '';
+    LINKS.forEach(([a, ap, b, bp]) => {
+      const p = at(a, ap, 'out'), q = at(b, bp, 'in');
+      if (!p || !q) return;
+      const stroke = V.palette[GRAPH.find(n => n.id === a).kind];
+      const dx = Math.max(48, Math.abs(q.x - p.x) * 0.5);
+      const glow = V.wire.glow ? `filter="url(#glow-${V.slug})"` : '';
+      out += `<path d="M${p.x} ${p.y} C${p.x+dx} ${p.y}, ${q.x-dx} ${q.y}, ${q.x} ${q.y}" fill="none"
+        stroke="${stroke}" stroke-width="${V.wire.w}" stroke-linecap="round" ${glow}/>`;
+    });
+    svg.innerHTML = `<defs><filter id="glow-${V.slug}" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter></defs>` + out;
+  });
+  document.body.dataset.wired = 'yes';
+});
+</script>
+</body>
+</html>
