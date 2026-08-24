@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>F8F — Orbit L, label LOD on zoom</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #eceff3; color: #0f172a; padding: 28px; }
+  .page-h { max-width: 1160px; margin: 0 auto 22px; }
+  .page-h h1 { font-size: 20px; margin: 0 0 4px; }
+  .page-h p { margin: 0; font-size: 13px; color: #64748b; max-width: 760px; }
+  .tile { max-width: 1160px; margin: 0 auto 26px; background: #fff; border-radius: 14px;
+    border: 1px solid #dde3ec; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+  .tile-h { padding: 14px 18px; border-bottom: 1px solid #eef2f7; display: flex; align-items: baseline; gap: 10px; }
+  .tile-h .num { font: 600 11px ui-monospace, Menlo, monospace; color: #94a3b8; }
+  .tile-h h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .tile-h .tag { font-size: 11px; color: #64748b; }
+  .tile-h .why { margin-left: auto; font-size: 12px; color: #64748b; max-width: 520px; text-align: right; }
+  .sec-l { padding: 8px 18px; font: 600 10px ui-sans-serif; letter-spacing: .14em; text-transform: uppercase;
+    color: #94a3b8; background: #fbfcfe; border-top: 1px solid #eef2f7; border-bottom: 1px solid #eef2f7;
+    display: flex; align-items: center; gap: 10px; }
+  .sec-l .bad { color: #b91c1c; letter-spacing: 0; text-transform: none; font-weight: 500; }
+  .sec-l .good { color: #15803d; letter-spacing: 0; text-transform: none; font-weight: 500; }
+
+  .stage { position: relative; overflow: hidden;
+    background: radial-gradient(130% 110% at 18% 0%, #fcfdff, #e6edf7); }
+  .zoomwrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .stage svg.wires { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 0; }
+  .stage .node { position: absolute; z-index: 1; }
+  .hud { position: absolute; right: 12px; bottom: 10px; z-index: 6; font: 600 11px ui-monospace, Menlo, monospace;
+    color: #64748b; background: rgba(255,255,255,.85); border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; }
+
+  /* ---- Orbit L, medium glow ---- */
+  .node { width: 150px; text-align: center; --ringw: 2px; --glowc: var(--k); --gb: 30px; --gs: -1px; --ga: 52%; }
+  .disc { width: 108px; height: 108px; margin: 0 auto; border-radius: 50%; position: relative;
+    background: radial-gradient(circle at 50% 26%, #ffffff, #fdfdfe);
+    display: grid; place-items: center; color: var(--k);
+    box-shadow: 0 8px 18px -12px rgba(15,23,42,.35), 0 1px 2px rgba(15,23,42,.06); }
+  .disc::before { content: ""; position: absolute; inset: calc(var(--ringw) * -1); border-radius: 50%; z-index: 0;
+    background: conic-gradient(var(--ring, var(--k)) var(--pct, 100%), #dde5ef 0);
+    box-shadow: 0 0 var(--gb) var(--gs) color-mix(in srgb, var(--glowc) var(--ga), transparent); }
+  .disc::after { content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: 1;
+    background: radial-gradient(circle at 50% 26%, #ffffff, #fdfdfe); }
+  .disc svg { width: 36px; height: 36px; position: relative; z-index: 2; }
+
+  /* the label block is what counter-scales */
+  .labels { position: relative; z-index: 2; margin: 0 auto; transform-origin: 50% 0;
+    transform: scale(var(--ls, 1)); width: var(--lw, 150px); }
+  .kindlabel { margin-top: 13px; font: 700 8.5px ui-sans-serif; letter-spacing: .16em;
+    color: color-mix(in srgb, var(--k) 80%, #64748b); }
+  .t { margin-top: 4px; font-size: 14px; font-weight: 650; line-height: 1.22; letter-spacing: -.01em;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .m { display: inline-block; margin-top: 6px; max-width: 100%; font: 11px ui-monospace, Menlo, monospace;
+    color: #7c8899; background: rgba(255,255,255,.8); border: 1px solid #e6ecf4; border-radius: 999px;
+    padding: 2px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+  /* level-of-detail: shed the least important line first, then all text */
+  .lod-2 .m { display: none; }
+  .lod-3 .labels { display: none; }
+
+  .badge { position: absolute; left: 50%; top: 96px; z-index: 3; transform-origin: 50% 50%;
+    transform: translateX(-50%) scale(var(--bs, 1));
+    font: 700 8.5px ui-sans-serif; letter-spacing: .1em; padding: 3px 9px; border-radius: 999px; color: #fff;
+    white-space: nowrap; box-shadow: 0 3px 8px -2px rgba(15,23,42,.4); }
+  .badge.ok { background: #16a34a; } .badge.live { background: #2563eb; } .badge.bad { background: #dc2626; }
+  .lod-2 .badge, .lod-3 .badge { display: none; }
+
+  .node.st-selected .disc { box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(15,23,42,.42), 0 10px 22px -12px rgba(15,23,42,.4); }
+  .node.st-running .disc { --ring: #2563eb; --pct: 68%; --glowc: #2563eb; }
+  .node.st-success .disc { --ring: #16a34a; --glowc: #16a34a; }
+  .node.st-error   .disc { --ring: #dc2626; --glowc: #dc2626; }
+
+  .dot { position: absolute; width: 13px; height: 13px; border-radius: 50%; background: var(--k);
+    border: 3px solid #fff; box-shadow: 0 1px 3px rgba(15,23,42,.28); z-index: 4; }
+  .pin .dot { left: 14px; top: 47px; }
+  .pout .dot { right: 14px; }
+  .pout .dot.p0 { top: 47px; }
+  .pout.multi .dot.p0 { top: 15px; right: 22px; }
+  .pout.multi .dot.p1 { top: 79px; right: 22px; }
+  .plabel { position: absolute; font: 700 8.5px ui-sans-serif; letter-spacing: .1em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--k) 85%, #475569); z-index: 4; }
+  .plabel.l0 { top: 2px; right: 6px; } .plabel.l1 { top: 92px; right: 4px; }
+  .lod-2 .plabel, .lod-3 .plabel { display: none; }
+
+  /* the ladder strip */
+  .ladder { display: flex; align-items: flex-start; gap: 0; padding: 30px 20px 22px;
+    background: radial-gradient(130% 110% at 18% 0%, #fcfdff, #e6edf7); }
+  .rung { flex: 1; text-align: center; }
+  .rung .frame { height: 190px; position: relative; }
+  .rung .frame .zoomwrap { left: 50%; }
+  .rung .cap { font: 600 10px ui-monospace, Menlo, monospace; color: #475569; }
+  .rung .sub { margin-top: 4px; font: 10px ui-sans-serif; color: #94a3b8; line-height: 1.35; padding: 0 6px; }
+</style>
+</head>
+<body>
+<div class="page-h">
+  <h1>F8F — label level-of-detail on zoom</h1>
+  <p>Below 70% zoom the label block stops scaling with the canvas and holds its on-screen size, capped to one
+     column of width so neighbours never collide. Detail sheds in stages after that.</p>
+</div>
+<div id="gallery"></div>
+<script>
+const ICONS = {
+  trigger:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
+  action:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12 6 6 6-6 6"/></svg>',
+  condition:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a5 5 0 0 0 5 5h7"/><path d="M6 21v-5a5 5 0 0 1 5-5h7"/><path d="m15 10 3 3-3 3"/></svg>',
+  transform:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  output:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>',
+};
+const KIND_LABEL = { trigger:'TRIGGER', action:'ACTION', condition:'LOGIC', transform:'TRANSFORM', output:'OUTPUT' };
+const LIGHT = { trigger:'#059669', action:'#2563eb', condition:'#ca8a04', transform:'#9333ea', output:'#e11d48' };
+
+const COLW = 240, ROWH = 185, BASEY = 250, PAD = 34;
+const GRAPH = [
+  { id:'n1',  kind:'trigger',   title:'Ticket Created', meta:'shop.ticket.new',   col:0, row:0,    st:'success',  outs:['out'] },
+  { id:'n2',  kind:'action',    title:'HTTP Request',   meta:'GET /crm/customer', col:1, row:0,    st:'success',  ins:['in'], outs:['out'] },
+  { id:'n3',  kind:'condition', title:'If / Else',      meta:'status == intake',  col:2, row:0,    st:'selected', ins:['in'], outs:['true','false'] },
+  { id:'n4',  kind:'transform', title:'Format SMS',     meta:'{{customer.name}}', col:3, row:-1,   st:'running',  ins:['in'], outs:['out'] },
+  { id:'n5',  kind:'action',    title:'Assign Tech',    meta:'queue: intake',     col:3, row:1,    st:'idle',     ins:['in'], outs:['out'] },
+  { id:'n6',  kind:'action',    title:'Send Message',   meta:'Welcome SMS',       col:4, row:-1,   st:'idle',     ins:['in'], outs:['out'] },
+  { id:'n7',  kind:'condition', title:'Priority?',      meta:'sla == rush',       col:4, row:1,    st:'idle',     ins:['in'], outs:['true','false'] },
+  { id:'n8',  kind:'output',    title:'Log Event',      meta:'audit.workflow',    col:5, row:-1,   st:'idle',     ins:['in'] },
+  { id:'n9',  kind:'output',    title:'Page On-Call',   meta:'pager.rush',        col:5, row:0.55, st:'idle',     ins:['in'] },
+  { id:'n10', kind:'output',    title:'Notify Tech',    meta:'tech.assigned',     col:5, row:1.7,  st:'error',    ins:['in'] },
+];
+const LINKS = [['n1','out','n2','in'],['n2','out','n3','in'],['n3','true','n4','in'],['n3','false','n5','in'],
+  ['n4','out','n6','in'],['n5','out','n7','in'],['n6','out','n8','in'],['n7','true','n9','in'],['n7','false','n10','in']];
+const WORLD_W = PAD + 5 * COLW + 150;
+
+const dot = (n,p,d,i) => `<i class="dot p${i}" data-node="${n.id}" data-port="${p}" data-dir="${d}"></i>`;
+const outs = n => n.outs || [], ins = n => n.ins || [];
+const labelled = (n,p,d,i) => (outs(n).length>1 ? `<span class="plabel l${i}">${p}</span>` : '') + dot(n,p,d,i);
+const pinB = n => ins(n).length ? `<div class="pin">${ins(n).map((p,i)=>dot(n,p,'in',i)).join('')}</div>` : '';
+const poutB = n => outs(n).length
+  ? `<div class="pout${outs(n).length>1?' multi':''}">${outs(n).map((p,i)=>labelled(n,p,'out',i)).join('')}</div>` : '';
+const badge = st => st==='success' ? '<span class="badge ok">0.4s</span>'
+  : st==='running' ? '<span class="badge live">RUNNING</span>'
+  : st==='error' ? '<span class="badge bad">FAILED</span>' : '';
+
+const tpl = n => `<div class="node st-${n.st||'idle'}" style="--k:${LIGHT[n.kind]}">
+  <div class="disc">${ICONS[n.kind]}</div>${badge(n.st)}
+  <div class="labels"><div class="kindlabel">${KIND_LABEL[n.kind]}</div>
+    <div class="t">${n.title}</div><div class="m">${n.meta}</div></div>
+  ${pinB(n)}${poutB(n)}</div>`;
+
+// --- the rule -------------------------------------------------------------
+const PIN = 0.70;   // at or above this zoom, labels ride the canvas
+const LOD2 = 0.40;  // below this, drop the config pill and the port labels
+const LOD3 = 0.22;  // below this, drop text entirely — ring + icon carry the node
+function lodFor(z, pinned) {
+  const ls = pinned ? Math.max(1, PIN / z) : 1;          // counter-scale
+  const lw = pinned ? (COLW - 16) / ls : 150;            // ... capped to one column
+  const bs = pinned ? Math.max(1, Math.min(PIN, 0.55) / z) : 1;
+  const cls = !pinned ? '' : z < LOD3 ? 'lod-3' : z < LOD2 ? 'lod-2' : '';
+  return { ls, lw, bs, cls };
+}
+
+function buildStage(host, { z, pinned, h }) {
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+  stage.style.height = h + 'px';
+  stage.innerHTML = `<div class="zoomwrap"><svg class="wires"></svg></div>
+    <div class="hud">zoom ${Math.round(z * 100)}%${pinned ? '' : ' · naive'}</div>`;
+  host.appendChild(stage);
+  const wrap = stage.querySelector('.zoomwrap');
+  const offX = Math.max(0, (1158 - WORLD_W * z) / 2);
+  wrap.style.transform = `translateX(${offX}px) scale(${z})`;
+  wrap.style.width = WORLD_W + 200 + 'px';
+  wrap.style.height = (h / z + 200) + 'px';
+  const { ls, lw, bs, cls } = lodFor(z, pinned);
+  GRAPH.forEach(n => {
+    const box = document.createElement('div');
+    box.innerHTML = tpl(n).trim();
+    const el = box.firstElementChild;
+    if (cls) el.classList.add(cls);
+    el.style.setProperty('--ls', ls);
+    el.style.setProperty('--lw', lw + 'px');
+    el.style.setProperty('--bs', bs);
+    el.style.left = (PAD + n.col * COLW) + 'px';
+    el.style.top = (BASEY + n.row * ROWH) + 'px';
+    wrap.appendChild(el);
+  });
+  return { wrap, z };
+}
+
+const pending = [];
+const gallery = document.getElementById('gallery');
+const VIEWS = [
+  { slug:'z100', num:'01', name:'100% — reference', tag:'labels ride the canvas', z:1, h:430, both:false,
+    why:'Above the threshold nothing special happens: the label is part of the node and scales with everything else.' },
+  { slug:'z55', num:'02', name:'55% zoom', tag:'first pinned step', z:0.55, h:420, both:true,
+    why:'Naive is already soft. Pinned holds the size the label had at 70% — the point where it was last comfortably readable.' },
+  { slug:'z35', num:'03', name:'35% zoom', tag:'config pill dropped', z:0.35, h:330, both:true,
+    why:'Naive is unreadable. Pinned keeps kind and title, and sheds the config pill and port labels so the titles do not crowd.' },
+  { slug:'z20', num:'04', name:'20% zoom', tag:'text off, ring carries', z:0.20, h:250, both:true,
+    why:'Past this point text at any size is noise. Colour, icon and ring state still read — which is the whole argument for the disc.' },
+];
+
+VIEWS.forEach(V => {
+  const tile = document.createElement('section');
+  tile.className = 'tile';
+  tile.id = 'tile-' + V.slug;
+  tile.innerHTML = `<div class="tile-h"><span class="num">${V.num}</span><h2>${V.name}</h2>
+    <span class="tag">${V.tag}</span><span class="why">${V.why}</span></div>`;
+  gallery.appendChild(tile);
+  if (V.both) {
+    const a = document.createElement('div');
+    a.className = 'sec-l';
+    a.innerHTML = 'Naive — label scales with canvas <span class="bad">← what we had</span>';
+    tile.appendChild(a);
+    pending.push(buildStage(tile, { z: V.z, pinned: false, h: V.h }));
+    const b = document.createElement('div');
+    b.className = 'sec-l';
+    b.innerHTML = 'Pinned — label holds its on-screen size <span class="good">← proposed</span>';
+    tile.appendChild(b);
+  }
+  pending.push(buildStage(tile, { z: V.z, pinned: true, h: V.h }));
+});
+
+// the ladder
+const RUNGS = [
+  { z: 1,    cap: '100%',  sub: 'full label, scales normally' },
+  { z: 0.70, cap: '70%',   sub: 'threshold — pinning starts here' },
+  { z: 0.50, cap: '50%',   sub: 'label held at its 70% size' },
+  { z: 0.35, cap: '35%',   sub: 'config pill + port labels drop' },
+  { z: 0.22, cap: '22%',   sub: 'last rung with text' },
+  { z: 0.14, cap: '14%',   sub: 'ring, icon and colour only' },
+];
+const lt = document.createElement('section');
+lt.className = 'tile'; lt.id = 'tile-ladder';
+lt.innerHTML = `<div class="tile-h"><span class="num">05</span><h2>The ladder</h2>
+  <span class="tag">one node, six zoom levels</span>
+  <span class="why">Each rung shown at true scale. The label shrinks to the 70% threshold and then stops; only detail is removed after that, never size.</span></div>`;
+gallery.appendChild(lt);
+const lad = document.createElement('div');
+lad.className = 'ladder';
+lt.appendChild(lad);
+const SAMPLE = { id:'lad', kind:'action', title:'Send Message', meta:'Welcome SMS', st:'idle', ins:['in'], outs:['out'] };
+RUNGS.forEach(R => {
+  const { ls, lw, bs, cls } = lodFor(R.z, true);
+  const rung = document.createElement('div');
+  rung.className = 'rung';
+  rung.innerHTML = `<div class="frame"><div class="zoomwrap"></div></div>
+    <div class="cap">${R.cap}</div><div class="sub">${R.sub}</div>`;
+  lad.appendChild(rung);
+  const w = rung.querySelector('.zoomwrap');
+  w.style.transform = `translateX(-75px) scale(${R.z})`;
+  w.style.width = '150px';
+  const box = document.createElement('div');
+  box.innerHTML = tpl(SAMPLE).trim();
+  const el = box.firstElementChild;
+  if (cls) el.classList.add(cls);
+  el.style.setProperty('--ls', ls);
+  el.style.setProperty('--lw', lw + 'px');
+  el.style.setProperty('--bs', bs);
+  el.style.position = 'relative';
+  w.appendChild(el);
+});
+
+requestAnimationFrame(() => {
+  pending.forEach(({ wrap, z }) => {
+    const svg = wrap.querySelector('svg.wires');
+    const wb = wrap.getBoundingClientRect();
+    const at = (nid, port, dir) => {
+      const d = wrap.querySelector(`.dot[data-node="${nid}"][data-port="${port}"][data-dir="${dir}"]`);
+      if (!d) return null;
+      const r = d.getBoundingClientRect();
+      return { x: (r.left - wb.left + r.width / 2) / z, y: (r.top - wb.top + r.height / 2) / z };
+    };
+    let out = '';
+    LINKS.forEach(([a, ap, b, bp]) => {
+      const p = at(a, ap, 'out'), q = at(b, bp, 'in');
+      if (!p || !q) return;
+      const stroke = LIGHT[GRAPH.find(n => n.id === a).kind];
+      const dx = Math.max(46, Math.abs(q.x - p.x) * 0.5);
+      out += `<path d="M${p.x} ${p.y} C${p.x+dx} ${p.y}, ${q.x-dx} ${q.y}, ${q.x} ${q.y}" fill="none"
+        stroke="${stroke}" stroke-width="2.4" stroke-linecap="round"/>`;
+    });
+    svg.innerHTML = out;
+  });
+  document.body.dataset.wired = 'yes';
+});
+</script>
+</body>
+</html>
