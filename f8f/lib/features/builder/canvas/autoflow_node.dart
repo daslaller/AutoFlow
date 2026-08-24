@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import 'package:fl_nodes_visual_scripting/fl_nodes_visual_scripting.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/features/builder/canvas/heid_prototypes.dart';
@@ -48,8 +50,45 @@ class _AutoflowNodeWidgetState extends FlBaseNodeWidgetState<AutoflowNodeWidget>
     super.dispose();
   }
 
+  RunStatus? _lastStatus;
+
   void _onSession() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+
+    // Every node listens to the one session, so a single status change wakes
+    // all of them; only the node that actually changed can have changed size.
+    final status = widget.session.statusOf(widget.node.id);
+    if (status == _lastStatus) return;
+    _lastStatus = status;
+
+    // ⚠️ **Without this, running a Preview makes the graph disappear.**
+    //
+    // HeidNodes' node layer lays out only the children in its own
+    // `_childrenNotLaidOut` set, which is filled from *its* events — a node
+    // added, moved, selected, hovered, collapsed. A node widget that rebuilds
+    // on its own says nothing to that set, so the child is skipped in layout,
+    // and `RenderObject._paintWithContext` then silently returns early while
+    // `_needsLayout` is true. The node stops painting entirely and all that is
+    // left of it is the cached drop shadow the layer draws from the node's
+    // last known rect — a grey blur where the card was.
+    //
+    // A run status is exactly that kind of self-rebuild: five nodes went to
+    // ghosts the first time this canvas was photographed mid-Preview. This
+    // hands the layer the one per-node signal it does listen to. It carries
+    // no hover state — the render object sets `state.isHovered` itself before
+    // emitting, and we deliberately do not — so all it means here is "this
+    // node's chrome changed, measure it again".
+    //
+    // The real fix is upstream: the layer should lay out any child that is
+    // dirty, not only the ones it was told about.
+    widget.controller.eventBus.emit(
+      FlNodeHoverEvent(
+        widget.node.id,
+        type: FlHoverEventType.exit,
+        id: const Uuid().v4(),
+      ),
+    );
   }
 
   @override
@@ -72,14 +111,25 @@ class _AutoflowNodeWidgetState extends FlBaseNodeWidgetState<AutoflowNodeWidget>
               key: widget.node.key,
               clipBehavior: Clip.none,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
+                // ⚠️ **Not an `AnimatedContainer`, and that is a fix.**
+                //
+                // A run status used to cross-fade in over 160ms. A border is
+                // part of a `BoxDecoration`'s padding, so every tick of that
+                // fade re-laid the card out — and HeidNodes' node layer only
+                // lays out children it was *told* about (see `_onSession`
+                // below), so the node was skipped in layout and then silently
+                // skipped in paint for the whole animation. Three of six nodes
+                // photographed as grey blurs a frame after their status
+                // landed. Anything animating layout inside a node does this;
+                // the ring is now simply on or off.
+                DecoratedBox(
                   decoration: decoration.copyWith(
                     color: AnchorColors.white,
                     border: borderColor == null
                         ? null
                         : Border.all(color: borderColor, width: 2),
                   ),
+                  child: const SizedBox.expand(),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -184,8 +234,19 @@ class _Header extends StatelessWidget {
       decoration: node.builtHeaderStyle.decoration,
       child: Row(
         children: [
-          Icon(kindIcon(kind), size: 16, color: Colors.white),
-          const SizedBox(width: 8),
+          // The glyph sits in its own tinted chip rather than loose on the
+          // wash: at 10% the header is close enough to white that a bare
+          // 16px icon reads as a stray mark instead of as the node's kind.
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: kind.color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(kindIcon(kind), size: 15, color: kind.color),
+          ),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               node.prototype.displayName(context),

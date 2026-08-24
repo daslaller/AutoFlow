@@ -239,7 +239,7 @@ FlNodePrototype prototypeForType(NodeTypeDef type, PreviewSession session) {
       await session.before(iid);
       final started = DateTime.now().toUtc();
       var ok = true;
-      String? message = 'ok';
+      var message = 'ok';
       Map<String, dynamic>? output;
 
       try {
@@ -280,7 +280,7 @@ FlNodePrototype prototypeForType(NodeTypeDef type, PreviewSession session) {
       }
 
       await session.after(iid, started, ok: ok, message: message, output: output);
-      if (!ok) throw StateError(message ?? 'error');
+      if (!ok) throw StateError(message);
       exec.forward(outIds.first);
     },
   );

@@ -46,9 +46,13 @@ void main() {
   });
 
   test('each alternative is visually distinct from the default primary', () {
+    // `.all` holds presets (id + label + blurb + colors); the palette itself
+    // is `.colors`. This read `p.primary` and had not compiled since the
+    // presets grew their metadata — so the whole file stopped loading and
+    // every test in it was absent rather than failing.
     final def = AnchorThemePresets.anchor.primary;
     for (final p in AnchorThemePresets.all.skip(1)) {
-      expect(p.primary, isNot(def), reason: p.id);
+      expect(p.colors.primary, isNot(def), reason: p.id);
     }
   });
 }

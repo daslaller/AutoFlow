@@ -72,6 +72,30 @@ class HeidGraph {
     notifyLayout();
   }
 
+  /// **Stop the beams, and with them the canvas's per-frame ticker.**
+  ///
+  /// A link whose style carries an [FlLinkStyle.effect] is held on HeidNodes'
+  /// *active* tier, and that tier runs a [Ticker] for as long as it has a
+  /// member — which, now that every placed line carries a beam, is for as long
+  /// as the graph has links.
+  ///
+  /// That ticker belongs to the controller but is vended by the editor
+  /// widget's own [TickerProvider], and HeidNodes' data layer does not stop it
+  /// when it is disposed. Flutter unmounts deepest-first, so a route closing
+  /// disposes that data layer *before* the host gets to dispose the
+  /// controller — and `TickerProviderStateMixin.dispose` throws
+  /// "disposed with an active Ticker" in debug. Pausing from an ancestor's
+  /// `deactivate` (which runs before any of that) is what keeps the beam and
+  /// a clean teardown from being a choice. See [WorkflowCanvas].
+  void pauseLinkEffects() {
+    for (final id in controller.links.keys.toList()) {
+      controller.setLinkEffect(id, enabled: false);
+    }
+  }
+
+  /// Puts every link back on the effect tier, from the styles themselves.
+  void resumeLinkEffects() => controller.resyncLinkEffects();
+
   /// Force the mounted editor to pick up programmatic offset/port changes.
   void notifyLayout() {
     controller.nodesDataDirty = true;
