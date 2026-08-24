@@ -113,7 +113,19 @@ class BeamLinkEffect implements FlLinkEffect {
     final double inCycle = elapsed % cycle;
     if (inCycle > duration) return; // resting between passes
 
-    final double total = _length(path);
+    // Measured ONCE. `Path.computeMetrics()` re-measures the path on every
+    // call and this runs per link per frame — the first cut called it four
+    // times (length, extract, head point, tail point). Holding the yielded
+    // metrics is safe because `toList` advances the iterator past all of
+    // them, which is exactly what `PathMetric.extractPath` asserts.
+    final List<PathMetric> metrics =
+        path.computeMetrics().toList(growable: false);
+    if (metrics.isEmpty) return;
+
+    var total = 0.0;
+    for (final PathMetric metric in metrics) {
+      total += metric.length;
+    }
     if (total <= 0) return;
 
     final double beam = (total * beamFraction).clamp(
@@ -132,9 +144,9 @@ class BeamLinkEffect implements FlLinkEffect {
     final double to = (reverse ? total - tail : head).clamp(0.0, total);
     if (to - from <= 0.01) return;
 
-    final Path segment = _extract(path, from, to);
-    final Offset? headPoint = _pointAt(path, reverse ? from : to);
-    final Offset? tailPoint = _pointAt(path, reverse ? to : from);
+    final Path segment = _extract(metrics, from, to);
+    final Offset? headPoint = _pointAt(metrics, reverse ? from : to);
+    final Offset? tailPoint = _pointAt(metrics, reverse ? to : from);
     if (headPoint == null || tailPoint == null) return;
     if ((headPoint - tailPoint).distance < 0.5) return;
 
@@ -159,21 +171,10 @@ class BeamLinkEffect implements FlLinkEffect {
     );
   }
 
-  double _length(Path path) {
-    var total = 0.0;
-    for (final PathMetric metric in path.computeMetrics()) {
-      total += metric.length;
-    }
-    return total;
-  }
-
-  /// [PathMetrics] is single-pass, so every read re-computes. A link is one or
-  /// two segments, so this is cheap; it is the reason the helpers take a
-  /// [Path] rather than a metric.
-  Path _extract(Path path, double from, double to) {
+  Path _extract(List<PathMetric> metrics, double from, double to) {
     final Path out = Path();
     var walked = 0.0;
-    for (final PathMetric metric in path.computeMetrics()) {
+    for (final PathMetric metric in metrics) {
       final double start = from - walked;
       final double end = to - walked;
       if (end > 0 && start < metric.length) {
@@ -190,9 +191,9 @@ class BeamLinkEffect implements FlLinkEffect {
     return out;
   }
 
-  Offset? _pointAt(Path path, double distance) {
+  Offset? _pointAt(List<PathMetric> metrics, double distance) {
     var walked = 0.0;
-    for (final PathMetric metric in path.computeMetrics()) {
+    for (final PathMetric metric in metrics) {
       if (distance <= walked + metric.length) {
         return metric.getTangentForOffset(distance - walked)?.position;
       }

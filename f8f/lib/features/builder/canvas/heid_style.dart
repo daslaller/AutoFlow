@@ -36,6 +36,10 @@ abstract final class HeidStyle {
       decoration: BoxDecoration(
         color: AnchorColors.white,
         borderRadius: BorderRadius.circular(AnchorSpacing.radiusLg),
+        // A hairline, because the card no longer has a saturated header bar
+        // to give it an edge — see [headerStyle]. The shadow alone leaves the
+        // white body dissolving into `slate50` at the bottom corners.
+        border: Border.all(color: AnchorColors.border),
         boxShadow: selected
             ? AnchorShadows.lg
             : hovered
@@ -45,17 +49,36 @@ abstract final class HeidStyle {
     );
   }
 
+  /// **The header is a tint, not a bar** (owner, 2026-08-21, off four
+  /// candidates photographed on the canvas).
+  ///
+  /// It was a solid block of the kind's colour, and that was right while the
+  /// wires were flat slate — the header was the only colour on the canvas.
+  /// Now every placed line carries a beam in its source node's own colour
+  /// (see [linkStyle]), so five saturated bars and five coloured beams are
+  /// two things saying the same thing at the same volume — and the beam is
+  /// the one carrying what the graph could not previously show, which is
+  /// direction.
+  ///
+  /// So the kind keeps the same silhouette on a quarter of the ink: a 10%
+  /// wash, the title and icon *in* the colour rather than knocked out of it,
+  /// and a 22% rule where the solid bar's bottom edge used to be. On white at
+  /// 10% every one of the five kind colours still clears contrast for 13px
+  /// semibold text, which is why the title can take the colour at all.
   static FlNodeHeaderStyle headerStyle(NodeKind kind, FlNodeState state) {
     return FlNodeHeaderStyle(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: kind.color,
+        color: kind.color.withValues(alpha: 0.10),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AnchorSpacing.radiusLg),
         ),
+        border: Border(
+          bottom: BorderSide(color: kind.color.withValues(alpha: 0.22)),
+        ),
       ),
-      textStyle: const TextStyle(
-        color: Colors.white,
+      textStyle: TextStyle(
+        color: kind.color,
         fontSize: 13,
         fontWeight: FontWeight.w600,
       ),
@@ -123,14 +146,20 @@ abstract final class HeidStyle {
   ///   one that should look busiest.
   static FlLinkStyle linkStyle(Color portColor, FlLinkState link) {
     final bool lit = link.isSelected || link.isHovered;
+    final (Color head, Color tail) = beamColors(portColor);
     return FlLinkStyle(
-      color: lit ? portColor : const Color(0xFF334155),
+      // `AnchorColors.foreground`, not a slate literal: the painter lays this
+      // down at 22% and the presets include dark canvases (Midnight), where a
+      // dark ink at 22% is a wire nobody can see. The token is ink in either
+      // direction — near-black on the light presets, near-white on the dark
+      // ones — which is what a resting path wants to be.
+      color: lit ? portColor : AnchorColors.foreground,
       lineWidth: lit ? 3 : 2.2,
       drawMode: FlLineDrawMode.solid,
       curveType: FlLinkCurveType.bezier,
       effect: BeamLinkEffect(
-        headColor: beamColors(portColor).$1,
-        tailColor: beamColors(portColor).$2,
+        headColor: head,
+        tailColor: tail,
         duration: lit ? 2.6 : 5.0,
         beamFraction: lit ? 0.55 : 0.45,
       ),

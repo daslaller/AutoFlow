@@ -5,6 +5,7 @@
 // and asserts only the taken branch's action node ever runs, in both
 // directions, matching what a real automation execution must do.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:autoflow/domain/catalog.dart';
 import 'package:autoflow/domain/models.dart';
 import 'package:autoflow/features/run/simulation_engine.dart';
 
@@ -129,6 +130,7 @@ void main() {
   test('switch runs only the matching case port', () async {
     const inPort = [PortDef(id: 'in', label: 'In')];
     const outPort = [PortDef(id: 'out', label: 'Out')];
+    final switchType = buildDefaultCatalog().find('switch')!;
     final catalog = NodeCatalog(
       types: [
         const NodeTypeDef(
@@ -139,18 +141,14 @@ void main() {
           inputs: [],
           outputs: outPort,
         ),
-        const NodeTypeDef(
-          id: 'switch',
-          kind: NodeKind.condition,
-          label: 'Switch',
-          sublabel: '',
-          inputs: inPort,
-          outputs: [
-            PortDef(id: 'case1', label: 'Case 1'),
-            PortDef(id: 'case2', label: 'Case 2'),
-            PortDef(id: 'default', label: 'Default'),
-          ],
-        ),
+        // **The shipped Switch, not a hand-written twin of it.** Per-node
+        // config reaches the runtime as HeidNodes *fields*, and fields are
+        // built from `NodeTypeDef.fields` — so this fixture, which declared
+        // none, dropped `expr`/`case1`/`case2` on the floor. The switch then
+        // matched nothing, took `default`, and the test failed while the
+        // shipped node was fine. Taking the real type means the fixture
+        // cannot drift from the field keys `takenBranch` reads.
+        switchType,
         const NodeTypeDef(
           id: 'action',
           kind: NodeKind.action,
